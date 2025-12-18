@@ -53,9 +53,17 @@ export async function handleAbsensi(
   // Validate command matches user's allowed commands for their unit
   const isValidCommand = await validateCommand(user, command);
   if (!isValidCommand) {
+    // Show valid commands based on unit
+    const validCommandsMsg =
+      user.unit === 'SDI'
+        ? '• /pagi\n• /piket'
+        : '• /pagi\n• /malam\n• /pagimalam\n• /piketpagi\n• /piketmalam';
+
     await ctx.reply(
-      `⚠️ <b>Caption tidak sesuai dengan jadwal unit kamu.</b>\n\n` +
-        `Kirim /help untuk melihat command yang tersedia untuk ${user.unit}.`,
+      `⚠️ <b>Command tidak dikenali!</b>\n\n` +
+        `Kamu mengirim: <code>${command || 'tidak ada command'}</code>\n\n` +
+        `Command yang tersedia untuk <b>${user.unit}</b>:\n${validCommandsMsg}\n\n` +
+        `💡 <i>Pastikan penulisan command sudah benar.</i>`,
       { parse_mode: 'HTML' }
     );
     return;
@@ -116,16 +124,21 @@ export function extractCommand(caption: string | undefined): string | null {
   const text = caption.trim().toLowerCase();
 
   // List of valid attendance commands
+  // IMPORTANT: Order matters! Longer commands must come first to avoid prefix matching issues
+  // (e.g., /pagimalam must be checked before /pagi)
   const validCommands = [
-    '/pagi',
-    '/malam',
+    // Daman commands
+    '/pagimalam',
+    '/pagi_malam',
     '/piketpagi',
     '/piket_pagi',
     '/piketmalam',
     '/piket_malam',
-    '/pagimalam',
-    '/pagi_malam',
+    '/pagi',
+    '/malam',
     '/libur',
+    // SDI commands
+    '/piket',
   ];
 
   for (const cmd of validCommands) {

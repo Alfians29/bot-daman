@@ -244,16 +244,32 @@ export async function recordAttendance(
 
   // Get command data from TelegramCommand table (includes ShiftSetting)
   const cmdData = await getCommandByUnitAndCommand(user.unit, command);
+  const normalizedCmd = normalizeCommand(command);
 
-  // Build jadwal string from ShiftSetting times
-  const startTime = cmdData?.startTime || '07:30';
-  const endTime = cmdData?.endTime || '16:30';
+  // SDI uses fixed schedule: 07:30-17:00 WIB for both /pagi and /piket
+  // Daman uses ShiftSetting from database
+  let startTime: string;
+  let endTime: string;
+  let lateAfter: string;
+  let keterangan: string;
+
+  if (user.unit === 'SDI') {
+    // SDI fixed schedule
+    startTime = '07:30';
+    endTime = '17:00';
+    lateAfter = '07:36';
+    keterangan = normalizedCmd === '/piket' ? 'Piket' : 'Pagi';
+  } else {
+    // Daman from ShiftSetting
+    startTime = cmdData?.startTime || '07:30';
+    endTime = cmdData?.endTime || '16:30';
+    lateAfter = cmdData?.lateAfter || startTime;
+    keterangan = cmdData?.shiftName || 'Pagi';
+  }
+
   const jadwal = `${startTime}-${endTime} WIB`;
-  const keterangan = cmdData?.shiftName || 'Pagi';
-  const lateAfter = cmdData?.lateAfter || startTime;
 
   // For spreadsheet: use 'Pagi' for /pagimalam command
-  const normalizedCmd = normalizeCommand(command);
   const sheetKeterangan = normalizedCmd === '/pagimalam' ? 'Pagi' : keterangan;
 
   // Calculate status using lateAfter time
@@ -281,18 +297,7 @@ export async function recordAttendance(
     // Save to PostgreSQL (only for Daman users from User table)
     if (user.source === 'USER') {
       const today = getTodayStart();
-
       const shiftType = commandToShiftType(command);
-      console.log(
-        '📝 DEBUG: command=',
-        command,
-        'normalized=',
-        normalizeCommand(command),
-        'shiftType=',
-        shiftType,
-        'today=',
-        today
-      );
 
       await prisma.attendance.create({
         data: {

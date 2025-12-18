@@ -114,25 +114,51 @@ export async function getAttendanceRecords(): Promise<SheetAttendanceData[]> {
     // Skip header row
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      if (!row || row.length < 10) continue;
+      if (!row || row.length < 9) continue;
+
+      // Parse date - handle DD/MM/YYYY format
+      let waktu: Date;
+      try {
+        const waktuStr = row[0];
+        waktu = new Date(waktuStr);
+        // Fallback: parse DD/MM/YYYY format
+        if (isNaN(waktu.getTime())) {
+          const parts = waktuStr.match(
+            /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2})/
+          );
+          if (parts) {
+            waktu = new Date(
+              parseInt(parts[3]),
+              parseInt(parts[2]) - 1,
+              parseInt(parts[1]),
+              parseInt(parts[4]),
+              parseInt(parts[5])
+            );
+          }
+        }
+      } catch {
+        continue;
+      }
+
+      if (isNaN(waktu.getTime())) continue;
 
       records.push({
-        waktu: new Date(row[0]),
-        nik: row[1],
-        nama: row[2],
-        jadwalMasuk: row[3],
-        keterangan: row[4],
-        linkFoto: row[5],
-        jamAbsen: row[6],
-        status: row[7],
-        unit: row[8],
-        bulan: row[9],
+        waktu,
+        nik: row[1] || '',
+        nama: row[2] || '',
+        jadwalMasuk: row[3] || '',
+        keterangan: row[4] || '',
+        linkFoto: row[5] || '',
+        jamAbsen: row[6] || '',
+        status: row[7] || '',
+        unit: row[8] || '',
+        bulan: row[9] || '',
       });
     }
 
     return records;
   } catch (error) {
-    console.error('❌ Error fetching attendance records:', error);
+    console.error('Error fetching attendance records:', error);
     return [];
   }
 }

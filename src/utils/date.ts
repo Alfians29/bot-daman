@@ -55,17 +55,16 @@ export function formatBulan(date: Date): string {
 
 /**
  * Get today's date at midnight in Jakarta timezone (for PostgreSQL date storage)
- * Creates a Date that represents "today" in Jakarta timezone
+ * Uses UTC noon to avoid timezone conversion shifting the date
  */
 export function getTodayStart(): Date {
   const now = getNow(); // Jakarta time
-  // Create midnight date in local timezone
   const year = now.getFullYear();
   const month = now.getMonth();
   const day = now.getDate();
 
-  // Create date at midnight - this will be stored correctly in PostgreSQL
-  return new Date(year, month, day, 0, 0, 0, 0);
+  // Create date using UTC at noon to avoid day boundary issues
+  return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
 }
 
 /**
