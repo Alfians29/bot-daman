@@ -3,6 +3,7 @@ dotenv.config();
 
 import { createBot } from './bot';
 import { prisma } from './lib/prisma';
+import { setupScheduler } from './services/scheduler';
 
 async function main() {
   console.log('🚀 Starting Telegram Bot Absensi...');
@@ -18,6 +19,9 @@ async function main() {
 
   // Create and start bot
   const bot = createBot();
+
+  // Setup scheduled jobs for rekap reports
+  setupScheduler(bot);
 
   // Start bot with long polling
   console.log('🤖 Bot starting...');
