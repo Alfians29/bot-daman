@@ -1,0 +1,323 @@
+// Prisma Schema for Telegram Bot Absensi
+// MUST match app-daman schema + TelegramUser table
+// Compatible with Prisma 5.x / 6.x
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum ShiftType {
+  PAGI
+  MALAM
+  PIKET_PAGI
+  PIKET_MALAM
+  PAGI_MALAM
+  LIBUR
+}
+
+enum AttendanceStatus {
+  ONTIME
+  TELAT
+}
+
+enum AttendanceSource {
+  WEB
+  TELEGRAM_BOT
+}
+
+enum TransactionCategory {
+  INCOME
+  EXPENSE
+}
+
+enum ActivityType {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+}
+
+// ============================================================================
+// MODELS (from app-daman)
+// ============================================================================
+
+/// User - Tabel untuk menyimpan data anggota tim dan authentication
+model User {
+  id               String    @id
+  nik              String    @unique
+  username         String    @unique
+  password         String
+  name             String
+  nickname         String?
+  email            String    @unique
+  position         String    // "Team Leader" | "Member"
+  department       String
+  image            String?
+  usernameTelegram String?   @unique
+  phone            String?
+  roleId           String
+  role             Role      @relation(fields: [roleId], references: [id])
+  isActive         Boolean   @default(true)
+  lastLogin        DateTime?
+  refreshToken     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  attendances      Attendance[]
+  schedules        Schedule[]
+  cashEntries      CashEntry[]
+  dailyReports     DailyReport[]
+  activities       Activity[]
+
+  @@index([username])
+  @@index([usernameTelegram])
+  @@index([roleId])
+}
+
+/// Role - Tabel master untuk role/jabatan dalam sistem
+model Role {
+  id          String           @id
+  name        String           @unique
+  description String?
+  color       String?
+  isDefault   Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  users           User[]
+  rolePermissions RolePermission[]
+
+  @@index([name])
+}
+
+/// Permission - Tabel master untuk daftar permission/hak akses
+model Permission {
+  id          String           @id
+  code        String           @unique
+  name        String
+  description String?
+  module      String?
+  createdAt   DateTime         @default(now())
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@index([code])
+  @@index([module])
+}
+
+/// RolePermission - Pivot table many-to-many Role <-> Permission
+model RolePermission {
+  id           String     @id
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+/// Attendance - Tabel untuk menyimpan data absensi/kehadiran
+model Attendance {
+  id                String           @id
+  memberId          String
+  member            User             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tanggal           DateTime         @db.Date
+  jamAbsen          String           // Format: "HH:mm"
+  keterangan        ShiftType
+  status            AttendanceStatus
+  // Telegram Bot Fields
+  usernameTelegram  String?          // Username pengirim (tracking)
+  source            AttendanceSource @default(WEB)
+  telegramMessageId String?
+  telegramChatId    String?
+  photoUrl          String?          // NEW: Photo URL from Telegram
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([memberId, tanggal])
+  @@index([memberId])
+  @@index([tanggal])
+  @@index([usernameTelegram])
+}
+
+/// Schedule - Tabel untuk menyimpan jadwal kerja anggota
+model Schedule {
+  id          String    @id
+  memberId    String
+  member      User      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tanggal     DateTime  @db.Date
+  keterangan  ShiftType
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([memberId, tanggal])
+  @@index([memberId])
+  @@index([tanggal])
+}
+
+/// CashEntry - Tabel untuk menyimpan transaksi kas (pemasukan/pengeluaran)
+model CashEntry {
+  id                  String              @id
+  date                DateTime            @db.Date
+  description         String?
+  category            TransactionCategory
+  amount              Decimal             @db.Decimal(15, 2)
+  transactionCategory String?             // "Kas Bulanan", "Donasi", "ATK", dll
+  memberId            String?
+  member              User?               @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([memberId])
+  @@index([date])
+  @@index([category])
+}
+
+/// Activity - Tabel untuk audit log aktivitas user
+model Activity {
+  id        String       @id
+  action    String
+  target    String
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      ActivityType
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime     @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+/// DailyReport - Tabel untuk menyimpan laporan harian anggota
+model DailyReport {
+  id        String       @id
+  memberId  String
+  member    User         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tanggal   DateTime     @db.Date
+  tasks     ReportTask[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([memberId, tanggal])
+  @@index([memberId])
+  @@index([tanggal])
+}
+
+/// ReportTask - Tabel untuk menyimpan detail task dalam report harian
+model ReportTask {
+  id         String      @id
+  reportId   String
+  report     DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  jobTypeId  String
+  jobType    JobType     @relation(fields: [jobTypeId], references: [id])
+  keterangan String      @db.Text
+  value      Int         // Jumlah/kuantitas pekerjaan
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([reportId])
+  @@index([jobTypeId])
+}
+
+/// JobType - Tabel master untuk jenis pekerjaan
+model JobType {
+  id        String       @id
+  name      String       @unique
+  isActive  Boolean      @default(true)
+  tasks     ReportTask[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+/// ShiftSetting - Tabel untuk menyimpan konfigurasi waktu setiap shift
+model ShiftSetting {
+  id              String    @id
+  shiftType       ShiftType @unique
+  name            String
+  startTime       String?   // Format: "HH:mm"
+  endTime         String?   // Format: "HH:mm"
+  lateAfter       String?   // Batas waktu telat, Format: "HH:mm"
+  telegramCommand String?   // Command untuk bot Telegram, e.g. "/pagi", "/malam"
+  isActive        Boolean   @default(true)
+  color           String?   // Warna badge di UI
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relation to TelegramCommand
+  telegramCommands TelegramCommand[]
+}
+
+/// CashSetting - Tabel untuk menyimpan konfigurasi kas (tarif bulanan, dll)
+model CashSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique  // "monthly_fee", "year", dll
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+}
+
+// ============================================================================
+// NEW TABLES: TELEGRAM USER & TELEGRAM COMMAND
+// ============================================================================
+
+/// TelegramUser - Data user yang bisa menggunakan bot (Daman + SDI)
+model TelegramUser {
+  id               String   @id @default(cuid())
+  usernameTelegram String   @unique  // @alfiyyann, @andrewnugrohoo, etc
+  nik              String
+  nama             String
+  unit             String             // "Daman" or "SDI"
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // For Daman users, link to main User table (optional)
+  userId           String?  @unique
+  
+  @@index([usernameTelegram])
+  @@index([unit])
+  @@index([nik])
+}
+
+/// TelegramCommand - Command per unit yang terhubung ke ShiftSetting
+model TelegramCommand {
+  id             String       @id @default(cuid())
+  unit           String                 // "Daman" or "SDI"
+  command        String                 // "/pagi", "/malam", "/piketpagi", "/piketmalam"
+  
+  // Relation to ShiftSetting - untuk ambil jadwal dan keterangan
+  shiftSettingId String
+  shiftSetting   ShiftSetting @relation(fields: [shiftSettingId], references: [id])
+  
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([unit, command])
+  @@index([unit])
+  @@index([command])
+  @@index([shiftSettingId])
+}
+
