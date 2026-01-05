@@ -19,19 +19,31 @@ interface RekapData {
 }
 
 /**
+ * Helper to get date string in YYYY-MM-DD format for comparison
+ * This avoids timezone issues by comparing date strings instead of timestamps
+ */
+function getDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Group attendance data by filter function
+ * Uses string-based date comparison to avoid timezone issues
  */
 async function groupAbsensi(
-  filterFn: (date: Date) => boolean
+  filterFn: (dateStr: string, date: Date) => boolean
 ): Promise<RekapData> {
   const records = await getAttendanceRecords();
   const grouped: RekapData = {};
 
   for (const record of records) {
     const date = new Date(record.waktu);
-    date.setHours(0, 0, 0, 0);
+    const dateStr = getDateString(date);
 
-    if (filterFn(date)) {
+    if (filterFn(dateStr, date)) {
       const unit = record.unit;
       if (!grouped[unit]) grouped[unit] = {};
       if (!grouped[unit][record.nama]) {
@@ -87,13 +99,11 @@ function formatRekap(
  */
 export async function rekapHarian(): Promise<string> {
   const today = getNow();
-  today.setHours(0, 0, 0, 0);
+  const todayDateStr = getDateString(today);
   const todayStr = formatTanggalIndo(today);
 
-  const grouped = await groupAbsensi((d) => {
-    const dd = new Date(d);
-    dd.setHours(0, 0, 0, 0);
-    return dd.getTime() === today.getTime();
+  const grouped = await groupAbsensi((dateStr) => {
+    return dateStr === todayDateStr;
   });
 
   return formatRekap('Rekap Harian', todayStr, grouped, true);
@@ -106,8 +116,12 @@ export async function rekapMingguan(): Promise<string> {
   const today = getNow();
   const { start, end } = getWeekRange(today);
   const rangeStr = `${formatTanggalIndo(start)} - ${formatTanggalIndo(end)}`;
+  const startStr = getDateString(start);
+  const endStr = getDateString(end);
 
-  const grouped = await groupAbsensi((d) => d >= start && d <= end);
+  const grouped = await groupAbsensi((dateStr) => {
+    return dateStr >= startStr && dateStr <= endStr;
+  });
 
   return formatRekap('Rekap Mingguan', rangeStr, grouped, false);
 }
@@ -119,8 +133,12 @@ export async function rekapBulanan(): Promise<string> {
   const today = getNow();
   const { start, end } = getMonthRange(today);
   const rangeStr = `${formatTanggalIndo(start)} - ${formatTanggalIndo(end)}`;
+  const startStr = getDateString(start);
+  const endStr = getDateString(end);
 
-  const grouped = await groupAbsensi((d) => d >= start && d <= end);
+  const grouped = await groupAbsensi((dateStr) => {
+    return dateStr >= startStr && dateStr <= endStr;
+  });
 
   return formatRekap('Rekap Bulanan', rangeStr, grouped, false);
 }
