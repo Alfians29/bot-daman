@@ -9,6 +9,7 @@ import {
   isLate,
   isLateByTime,
   getTodayStart,
+  formatLogTimestamp,
 } from '../utils/date';
 import {
   appendAttendance,
@@ -314,8 +315,6 @@ export async function recordAttendance(
           photoUrl: photoUrl,
         },
       });
-
-      console.log('✅ Attendance saved to PostgreSQL');
     }
 
     return {

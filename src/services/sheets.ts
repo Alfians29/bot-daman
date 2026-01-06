@@ -1,6 +1,12 @@
 import { google } from 'googleapis';
 import { config } from '../config';
-import { formatTanggal, formatJam, formatBulan, getNow } from '../utils/date';
+import {
+  formatTanggal,
+  formatJam,
+  formatBulan,
+  getNow,
+  formatLogTimestamp,
+} from '../utils/date';
 
 // Google Sheets API setup
 const auth = new google.auth.GoogleAuth({
@@ -60,7 +66,7 @@ export async function appendAttendance(
       },
     });
 
-    console.log('✅ Attendance saved to Google Sheets');
+    console.log(`${formatLogTimestamp(now)} ${data.nama} berhasil absen`);
   } catch (error) {
     console.error('❌ Error saving to Google Sheets:', error);
     throw error;
@@ -116,25 +122,29 @@ export async function getAttendanceRecords(): Promise<SheetAttendanceData[]> {
       const row = rows[i];
       if (!row || row.length < 9) continue;
 
-      // Parse date - handle DD/MM/YYYY format
+      // Parse date - ALWAYS parse DD/MM/YYYY format explicitly
+      // Note: new Date("06/01/2026") wrongly interprets as June 1 (MM/DD) instead of Jan 6 (DD/MM)
       let waktu: Date;
       try {
-        const waktuStr = row[0];
-        waktu = new Date(waktuStr);
-        // Fallback: parse DD/MM/YYYY format
-        if (isNaN(waktu.getTime())) {
-          const parts = waktuStr.match(
-            /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2})/
+        const waktuStr = row[0]?.toString() || '';
+
+        // Try DD/MM/YYYY HH:mm:ss or DD/MM/YYYY HH:mm format first
+        const parts = waktuStr.match(
+          /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/
+        );
+
+        if (parts) {
+          waktu = new Date(
+            parseInt(parts[3]), // year
+            parseInt(parts[2]) - 1, // month (0-indexed)
+            parseInt(parts[1]), // day
+            parseInt(parts[4]), // hour
+            parseInt(parts[5]), // minute
+            parseInt(parts[6] || '0') // second (optional)
           );
-          if (parts) {
-            waktu = new Date(
-              parseInt(parts[3]),
-              parseInt(parts[2]) - 1,
-              parseInt(parts[1]),
-              parseInt(parts[4]),
-              parseInt(parts[5])
-            );
-          }
+        } else {
+          // Fallback for ISO format (YYYY-MM-DD)
+          waktu = new Date(waktuStr);
         }
       } catch {
         continue;

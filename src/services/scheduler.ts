@@ -68,11 +68,11 @@ export function setupScheduler(bot: Bot): void {
   console.log('  ✅ Reminder Absensi: Every day at 07:00 WIB');
 
   // ============================================
-  // REKAP HARIAN - Every day at 17:30 WIB
+  // REKAP HARIAN - Every day at 17:00 WIB
   // ============================================
-  // Cron: "30 17 * * *" = At 17:30 every day
+  // Cron: "0 17 * * *" = At 17:00 every day
   cron.schedule(
-    '30 17 * * *',
+    '0 17 * * *',
     async () => {
       console.log('📊 Running scheduled rekap harian...');
       try {
@@ -91,14 +91,14 @@ export function setupScheduler(bot: Bot): void {
       timezone: 'Asia/Jakarta',
     }
   );
-  console.log('  ✅ Rekap Harian: Every day at 17:30 WIB');
+  console.log('  ✅ Rekap Harian: Every day at 17:00 WIB');
 
   // ============================================
-  // REKAP MINGGUAN - Every Friday at 17:35 WIB
+  // REKAP MINGGUAN - Every Friday at 17:05 WIB
   // ============================================
-  // Cron: "35 17 * * 5" = At 17:35 every Friday (5 = Friday)
+  // Cron: "5 17 * * 5" = At 17:05 every Friday (5 = Friday)
   cron.schedule(
-    '35 17 * * 5',
+    '5 17 * * 5',
     async () => {
       console.log('📊 Running scheduled rekap mingguan...');
       try {
@@ -117,14 +117,14 @@ export function setupScheduler(bot: Bot): void {
       timezone: 'Asia/Jakarta',
     }
   );
-  console.log('  ✅ Rekap Mingguan: Every Friday at 17:35 WIB');
+  console.log('  ✅ Rekap Mingguan: Every Friday at 17:05 WIB');
 
   // ============================================
-  // REKAP BULANAN - Every 15th at 17:40 WIB
+  // REKAP BULANAN - Every 15th at 17:10 WIB
   // ============================================
-  // Cron: "40 17 15 * *" = At 17:40 on the 15th of every month
+  // Cron: "10 17 15 * *" = At 17:10 on the 15th of every month
   cron.schedule(
-    '40 17 15 * *',
+    '10 17 15 * *',
     async () => {
       console.log('📊 Running scheduled rekap bulanan...');
       try {
@@ -143,7 +143,7 @@ export function setupScheduler(bot: Bot): void {
       timezone: 'Asia/Jakarta',
     }
   );
-  console.log('  ✅ Rekap Bulanan: Every 15th at 17:40 WIB');
+  console.log('  ✅ Rekap Bulanan: Every 15th at 17:10 WIB');
 
   console.log('🕐 All scheduled jobs are set up!');
 }

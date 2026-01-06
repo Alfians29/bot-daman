@@ -47,6 +47,13 @@ export function formatJam(date: Date): string {
 }
 
 /**
+ * Format timestamp for console logs: "[YYYY-MM-DD HH:mm:ss]"
+ */
+export function formatLogTimestamp(date: Date): string {
+  return formatInTimeZone(date, TIMEZONE, '[yyyy-MM-dd HH:mm:ss]');
+}
+
+/**
  * Format date to "MMMM yyyy" (month year)
  */
 export function formatBulan(date: Date): string {
