@@ -39,6 +39,37 @@ export function createBot(): Bot {
     }
   });
 
+  // Ping command - test bot responsiveness (only @alfiyyann)
+  bot.command('ping', async (ctx) => {
+    const username = ctx.from?.username?.toLowerCase();
+
+    // Only allow @alfiyyann
+    if (username !== 'alfiyyann') {
+      await ctx.reply('Aku gamau respon kamu. 😒', {
+        parse_mode: 'HTML',
+      });
+      return;
+    }
+
+    const now = new Date();
+    const timestamp = now.toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    await ctx.reply(
+      `🏓 <b>Pong!</b>\n\n` +
+        `✅ Bot aktif dan merespon\n` +
+        `🕐 ${timestamp} WIB`,
+      { parse_mode: 'HTML' }
+    );
+  });
+
   // Photo handler (for attendance with photo + caption)
   bot.on('message:photo', async (ctx) => {
     const caption = ctx.message.caption || '';

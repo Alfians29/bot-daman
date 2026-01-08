@@ -7,6 +7,8 @@ import {
   recordAttendance,
 } from '../services/attendance';
 import { formatTanggal, formatJam, getNow } from '../utils/date';
+import { replyWithRetry } from '../utils/retry';
+import { queueMessage } from '../utils/messageQueue';
 
 /**
  * Handle attendance commands: /pagi, /malam, /piketpagi, /piketmalam, /libur
@@ -20,7 +22,7 @@ export async function handleAbsensi(
   const message = ctx.message;
 
   if (!chatId || !username) {
-    await ctx.reply('⚠️ <b>Tidak dapat mengidentifikasi user.</b>', {
+    await replyWithRetry(ctx, '⚠️ <b>Tidak dapat mengidentifikasi user.</b>', {
       parse_mode: 'HTML',
     });
     return;
@@ -29,11 +31,10 @@ export async function handleAbsensi(
   // Check if message has photo
   const photo = message?.photo;
   if (!photo || photo.length === 0) {
-    await ctx.reply(
+    await replyWithRetry(
+      ctx,
       '⚠️ <b>Absen harus menyertakan foto dengan caption sesuai jadwal.</b>',
-      {
-        parse_mode: 'HTML',
-      }
+      { parse_mode: 'HTML' }
     );
     return;
   }
@@ -41,11 +42,10 @@ export async function handleAbsensi(
   // Find user in database
   const user = await findUserByTelegram(`@${username}`);
   if (!user) {
-    await ctx.reply(
+    await replyWithRetry(
+      ctx,
       '⚠️ <b>Username tidak terdaftar di database.</b>\n\nHubungi admin untuk didaftarkan.',
-      {
-        parse_mode: 'HTML',
-      }
+      { parse_mode: 'HTML' }
     );
     return;
   }
@@ -59,7 +59,8 @@ export async function handleAbsensi(
         ? '• /pagi\n• /piket'
         : '• /pagi\n• /malam\n• /pagimalam\n• /piketpagi\n• /piketmalam';
 
-    await ctx.reply(
+    await replyWithRetry(
+      ctx,
       `⚠️ <b>Command tidak dikenali!</b>\n\n` +
         `Kamu mengirim: <code>${command || 'tidak ada command'}</code>\n\n` +
         `Command yang tersedia untuk <b>${user.unit}</b>:\n${validCommandsMsg}\n\n` +
@@ -72,7 +73,8 @@ export async function handleAbsensi(
   // Check if already attended today
   const alreadyAttended = await hasAttendedToday(user);
   if (alreadyAttended) {
-    await ctx.reply(
+    await replyWithRetry(
+      ctx,
       '⚠️ <b>Kamu sudah melakukan absen!</b>\n' +
         'Hanya diperbolehkan <b>1x absen per hari</b>, atau hubungi admin jika ada kendala yaa.',
       { parse_mode: 'HTML' }
@@ -109,9 +111,14 @@ export async function handleAbsensi(
       `🗓️ ${result.data.tanggal} • ${result.data.jamAbsen} WIB\n` +
       `📌 Status: ${statusEmoji} <b>${result.data.status}</b>`;
 
-    await ctx.reply(notif, { parse_mode: 'HTML' });
+    // Try to send with retry, queue if all retries fail
+    const sent = await replyWithRetry(ctx, notif, { parse_mode: 'HTML' });
+    if (!sent) {
+      // Data already saved, queue the notification for later
+      queueMessage(chatId.toString(), notif, 'HTML');
+    }
   } else {
-    await ctx.reply(result.message, { parse_mode: 'HTML' });
+    await replyWithRetry(ctx, result.message, { parse_mode: 'HTML' });
   }
 }
 
