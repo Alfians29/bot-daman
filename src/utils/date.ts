@@ -48,9 +48,12 @@ export function formatJam(date: Date): string {
 
 /**
  * Format timestamp for console logs: "[YYYY-MM-DD HH:mm:ss]"
+ * Uses grey color to differentiate from message text
  */
 export function formatLogTimestamp(date: Date): string {
-  return formatInTimeZone(date, TIMEZONE, '[yyyy-MM-dd HH:mm:ss]');
+  const timestamp = formatInTimeZone(date, TIMEZONE, '[yyyy-MM-dd HH:mm:ss]');
+  // ANSI escape code: \x1b[90m = grey, \x1b[0m = reset
+  return `\x1b[90m${timestamp}\x1b[0m`;
 }
 
 /**
