@@ -4,6 +4,7 @@ dotenv.config();
 import { createBot } from './bot';
 import { prisma } from './lib/prisma';
 import { setupScheduler } from './services/scheduler';
+import { loadQueue, processQueue, saveQueue } from './utils/messageQueue';
 
 async function main() {
   console.log('🚀 Starting Telegram Bot Absensi...');
@@ -17,6 +18,9 @@ async function main() {
     process.exit(1);
   }
 
+  // Load pending message queue
+  loadQueue();
+
   // Create and start bot
   const bot = createBot();
 
@@ -26,9 +30,12 @@ async function main() {
   // Start bot with long polling
   console.log('🤖 Bot starting...');
   await bot.start({
-    onStart: (info) => {
+    onStart: async (info) => {
       console.log(`✅ Bot @${info.username} started successfully!`);
       console.log('📌 Listening for messages...');
+
+      // Process any pending messages from queue
+      await processQueue(bot);
     },
   });
 }
@@ -36,12 +43,14 @@ async function main() {
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down...');
+  saveQueue(); // Save any pending messages
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\n🛑 Shutting down...');
+  saveQueue(); // Save any pending messages
   await prisma.$disconnect();
   process.exit(0);
 });
