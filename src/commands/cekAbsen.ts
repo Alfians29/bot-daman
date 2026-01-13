@@ -35,15 +35,14 @@ export async function handleCekAbsen(ctx: Context): Promise<void> {
   }
 
   const msg =
-    `📋 <b>Data Absen Kamu</b>\n\n` +
-    `👤 ${record.nama}\n` +
-    `🗓️ ${formatTanggalFull(record.waktu)}\n` +
-    `🕒 Jam Absen: ${record.jamAbsen} WIB\n` +
-    `📒 Jadwal: ${record.jadwalMasuk}\n` +
-    `📝 Keterangan: ${record.keterangan}\n` +
-    `🏷️ Unit: ${record.unit}\n` +
-    `📌 Status: <b>${record.status}</b>\n\n` +
-    (record.linkFoto ? `🔗 <a href='${record.linkFoto}'>Lihat Foto</a>` : '');
+    `📋 <b>DETAIL ABSENSI</b>\n\n` +
+    `👤 <b>${record.nama}</b>\n` +
+    `├ ${formatTanggalFull(record.waktu)}\n` +
+    `├ Jam: ${record.jamAbsen} WIB\n` +
+    `├ Jadwal: ${record.jadwalMasuk}\n` +
+    `├ Keterangan: ${record.keterangan}\n` +
+    `├ Unit: ${record.unit}\n` +
+    `└ Status: <b>${record.status}</b>`;
 
   await ctx.reply(msg, { parse_mode: 'HTML' });
 }

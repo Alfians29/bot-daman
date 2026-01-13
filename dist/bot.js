@@ -7,7 +7,7 @@ const absensi_1 = require("./commands/absensi");
 const cekAbsen_1 = require("./commands/cekAbsen");
 const help_1 = require("./commands/help");
 const rekap_1 = require("./commands/rekap");
-const scheduler_1 = require("./services/scheduler");
+const editAbsen_1 = require("./commands/editAbsen");
 /**
  * Create and configure the Telegram bot
  */
@@ -15,36 +15,35 @@ function createBot() {
     (0, config_1.validateConfig)();
     const bot = new grammy_1.Bot(config_1.config.BOT_TOKEN);
     // Command handlers
-    bot.command('start', help_1.handleStart);
     bot.command('help', help_1.handleHelp);
     bot.command('cekabsen', cekAbsen_1.handleCekAbsen);
     bot.command('rekapharian', rekap_1.handleRekapHarian);
     bot.command('rekapmingguan', rekap_1.handleRekapMingguan);
     bot.command('rekapbulanan', rekap_1.handleRekapBulanan);
-    // Test reminder command (for testing only)
-    bot.command('testreminder', async (ctx) => {
-        const chatId = ctx.chat?.id;
-        if (chatId?.toString() !== config_1.config.GROUP_ID)
-            return;
-        try {
-            await (0, scheduler_1.sendDailyReminder)(bot);
-        }
-        catch (error) {
-            console.error('Error testing reminder:', error);
-            await ctx.reply('❌ Error sending reminder');
-        }
-    });
-    // Ping command - test bot responsiveness (only @alfiyyann)
-    bot.command('ping', async (ctx) => {
+    bot.command('editabsen', editAbsen_1.handleEditAbsen);
+    // Bot status command - admin only
+    const botStartTime = new Date();
+    bot.command('botstatus', async (ctx) => {
         const username = ctx.from?.username?.toLowerCase();
         // Only allow @alfiyyann
         if (username !== 'alfiyyann') {
-            await ctx.reply('Aku gamau respon kamu. 😒', {
-                parse_mode: 'HTML',
-            });
+            await ctx.reply('Aku gamau respon kamu. 😒', { parse_mode: 'HTML' });
             return;
         }
         const now = new Date();
+        const uptimeMs = now.getTime() - botStartTime.getTime();
+        const uptimeDays = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
+        const uptimeHours = Math.floor((uptimeMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const uptimeMinutes = Math.floor((uptimeMs % (1000 * 60 * 60)) / (1000 * 60));
+        const uptimeSeconds = Math.floor((uptimeMs % (1000 * 60)) / 1000);
+        let uptimeStr = '';
+        if (uptimeDays > 0)
+            uptimeStr += `${uptimeDays} hari `;
+        if (uptimeHours > 0)
+            uptimeStr += `${uptimeHours} jam `;
+        if (uptimeMinutes > 0)
+            uptimeStr += `${uptimeMinutes} menit `;
+        uptimeStr += `${uptimeSeconds} detik`;
         const timestamp = now.toLocaleString('id-ID', {
             timeZone: 'Asia/Jakarta',
             day: '2-digit',
@@ -54,9 +53,26 @@ function createBot() {
             minute: '2-digit',
             second: '2-digit',
         });
-        await ctx.reply(`🏓 <b>Pong!</b>\n\n` +
-            `✅ Bot aktif dan merespon\n` +
-            `🕐 ${timestamp} WIB`, { parse_mode: 'HTML' });
+        const startTimeStr = botStartTime.toLocaleString('id-ID', {
+            timeZone: 'Asia/Jakarta',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+        const statusMessage = `🤖 <b>BOT ABSENSI DAMAN & SDI</b>\n\n` +
+            `📝 <b>Bot Information</b>\n` +
+            `├ Name: AbsensiBot\n` +
+            `├ Version: 1.0.0\n` +
+            `├ Language: TypeScript\n` +
+            `└ Framework: grammY + Prisma\n\n` +
+            `📊 <b>Server Status</b>\n` +
+            `├ Status: ✅ <b>Active</b>\n` +
+            `├ Uptime: ${uptimeStr.trim()}\n` +
+            `├ Start: ${startTimeStr} WIB\n` +
+            `└ Time: ${timestamp} WIB`;
+        await ctx.reply(statusMessage, { parse_mode: 'HTML' });
     });
     // Photo handler (for attendance with photo + caption)
     bot.on('message:photo', async (ctx) => {
