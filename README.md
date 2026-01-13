@@ -2,6 +2,8 @@
 
 Bot Telegram untuk manajemen absensi tim Daman & SDI.
 
+**!!BOT_TOKEN dan GROUP_ID masih untuk production menggunakan grup dan bot di grup TestingBotAbsensiDaman‼️!!**
+
 ## Features
 
 - ✅ Absensi dengan foto + command
