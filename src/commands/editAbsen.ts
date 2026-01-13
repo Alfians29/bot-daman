@@ -8,7 +8,12 @@ import {
   BotUserData,
 } from '../services/attendance';
 import { prisma } from '../lib/prisma';
-import { getTodayStart, formatTanggal } from '../utils/date';
+import {
+  getTodayStart,
+  formatTanggal,
+  formatLogTimestamp,
+  getNow,
+} from '../utils/date';
 import { AttendanceStatus } from '@prisma/client';
 import { updateAttendanceInSheet } from '../services/sheets';
 
@@ -144,6 +149,13 @@ export async function handleEditAbsen(ctx: Context): Promise<void> {
       jadwalMasuk: jadwal,
       keterangan: keterangan,
     });
+
+    const now = getNow();
+    console.log(
+      `${formatLogTimestamp(now)} Jadwal masuk ${
+        targetUser.nama
+      } diubah menjadi ${keterangan} oleh admin`
+    );
 
     await ctx.reply(
       `✅ <b>Absensi berhasil diupdate!</b>\n\n` +

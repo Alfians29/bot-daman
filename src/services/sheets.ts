@@ -233,7 +233,6 @@ export async function updateAttendanceInSheet(
       });
     }
 
-    console.log(`Updated attendance for NIK ${nik} on ${tanggal}`);
     return true;
   } catch (error) {
     console.error('Error updating attendance in Sheets:', error);
