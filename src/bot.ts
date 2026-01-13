@@ -2,13 +2,13 @@ import { Bot } from 'grammy';
 import { config, validateConfig } from './config';
 import { handleAbsensi, extractCommand } from './commands/absensi';
 import { handleCekAbsen } from './commands/cekAbsen';
-import { handleHelp, handleStart } from './commands/help';
+import { handleHelp } from './commands/help';
 import {
   handleRekapHarian,
   handleRekapMingguan,
   handleRekapBulanan,
 } from './commands/rekap';
-import { sendDailyReminder } from './services/scheduler';
+import { handleEditAbsen } from './commands/editAbsen';
 
 /**
  * Create and configure the Telegram bot
@@ -19,39 +19,41 @@ export function createBot(): Bot {
   const bot = new Bot(config.BOT_TOKEN);
 
   // Command handlers
-  bot.command('start', handleStart);
   bot.command('help', handleHelp);
   bot.command('cekabsen', handleCekAbsen);
   bot.command('rekapharian', handleRekapHarian);
   bot.command('rekapmingguan', handleRekapMingguan);
   bot.command('rekapbulanan', handleRekapBulanan);
+  bot.command('editabsen', handleEditAbsen);
 
-  // Test reminder command (for testing only)
-  bot.command('testreminder', async (ctx) => {
-    const chatId = ctx.chat?.id;
-    if (chatId?.toString() !== config.GROUP_ID) return;
-
-    try {
-      await sendDailyReminder(bot);
-    } catch (error) {
-      console.error('Error testing reminder:', error);
-      await ctx.reply('❌ Error sending reminder');
-    }
-  });
-
-  // Ping command - test bot responsiveness (only @alfiyyann)
-  bot.command('ping', async (ctx) => {
+  // Bot status command - admin only
+  const botStartTime = new Date();
+  bot.command('botstatus', async (ctx) => {
     const username = ctx.from?.username?.toLowerCase();
 
     // Only allow @alfiyyann
     if (username !== 'alfiyyann') {
-      await ctx.reply('Aku gamau respon kamu. 😒', {
-        parse_mode: 'HTML',
-      });
+      await ctx.reply('Aku gamau respon kamu. 😒', { parse_mode: 'HTML' });
       return;
     }
 
     const now = new Date();
+    const uptimeMs = now.getTime() - botStartTime.getTime();
+    const uptimeDays = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
+    const uptimeHours = Math.floor(
+      (uptimeMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+    );
+    const uptimeMinutes = Math.floor(
+      (uptimeMs % (1000 * 60 * 60)) / (1000 * 60)
+    );
+    const uptimeSeconds = Math.floor((uptimeMs % (1000 * 60)) / 1000);
+
+    let uptimeStr = '';
+    if (uptimeDays > 0) uptimeStr += `${uptimeDays} hari `;
+    if (uptimeHours > 0) uptimeStr += `${uptimeHours} jam `;
+    if (uptimeMinutes > 0) uptimeStr += `${uptimeMinutes} menit `;
+    uptimeStr += `${uptimeSeconds} detik`;
+
     const timestamp = now.toLocaleString('id-ID', {
       timeZone: 'Asia/Jakarta',
       day: '2-digit',
@@ -62,12 +64,29 @@ export function createBot(): Bot {
       second: '2-digit',
     });
 
-    await ctx.reply(
-      `🏓 <b>Pong!</b>\n\n` +
-        `✅ Bot aktif dan merespon\n` +
-        `🕐 ${timestamp} WIB`,
-      { parse_mode: 'HTML' }
-    );
+    const startTimeStr = botStartTime.toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const statusMessage =
+      `🤖 <b>BOT ABSENSI DAMAN & SDI</b>\n\n` +
+      `📝 <b>Bot Information</b>\n` +
+      `├ Name: AbsensiBot\n` +
+      `├ Version: 1.0.0\n` +
+      `├ Language: TypeScript\n` +
+      `└ Framework: grammY + Prisma\n\n` +
+      `📊 <b>Server Status</b>\n` +
+      `├ Status: ✅ <b>Active</b>\n` +
+      `├ Uptime: ${uptimeStr.trim()}\n` +
+      `├ Start: ${startTimeStr} WIB\n` +
+      `└ Time: ${timestamp} WIB`;
+
+    await ctx.reply(statusMessage, { parse_mode: 'HTML' });
   });
 
   // Photo handler (for attendance with photo + caption)

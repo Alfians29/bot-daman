@@ -5,6 +5,23 @@ exports.handleRekapMingguan = handleRekapMingguan;
 exports.handleRekapBulanan = handleRekapBulanan;
 const rekap_1 = require("../services/rekap");
 const config_1 = require("../config");
+// Admin username yang diizinkan
+const ADMIN_USERNAME = 'alfiyyann';
+/**
+ * Check if user is admin
+ */
+function isAdmin(ctx) {
+    const username = ctx.from?.username?.toLowerCase();
+    return username === ADMIN_USERNAME;
+}
+/**
+ * Send unauthorized message
+ */
+async function sendUnauthorized(ctx) {
+    await ctx.reply('Aku gamau respon kamu. 😒', {
+        parse_mode: 'HTML',
+    });
+}
 /**
  * Handle /rekapharian command
  */
@@ -12,6 +29,11 @@ async function handleRekapHarian(ctx) {
     const chatId = ctx.chat?.id;
     // Only allow in configured group
     if (chatId?.toString() !== config_1.config.GROUP_ID) {
+        return;
+    }
+    // Only allow admin
+    if (!isAdmin(ctx)) {
+        await sendUnauthorized(ctx);
         return;
     }
     try {
@@ -39,6 +61,11 @@ async function handleRekapMingguan(ctx) {
     if (chatId?.toString() !== config_1.config.GROUP_ID) {
         return;
     }
+    // Only allow admin
+    if (!isAdmin(ctx)) {
+        await sendUnauthorized(ctx);
+        return;
+    }
     try {
         const result = await (0, rekap_1.rekapMingguan)();
         if (!result ||
@@ -62,6 +89,11 @@ async function handleRekapBulanan(ctx) {
     const chatId = ctx.chat?.id;
     // Only allow in configured group
     if (chatId?.toString() !== config_1.config.GROUP_ID) {
+        return;
+    }
+    // Only allow admin
+    if (!isAdmin(ctx)) {
+        await sendUnauthorized(ctx);
         return;
     }
     try {
