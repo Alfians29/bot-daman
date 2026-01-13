@@ -25,4 +25,11 @@ export declare function hasAttendedTodayInSheet(nik: string, tanggal: string): P
  * Get attendance records for rekap
  */
 export declare function getAttendanceRecords(): Promise<SheetAttendanceData[]>;
+/**
+ * Update attendance record in Google Sheets
+ */
+export declare function updateAttendanceInSheet(nik: string, tanggal: string, updates: {
+    jadwalMasuk?: string;
+    keterangan?: string;
+}): Promise<boolean>;
 //# sourceMappingURL=sheets.d.ts.map

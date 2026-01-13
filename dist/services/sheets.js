@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.appendAttendance = appendAttendance;
 exports.hasAttendedTodayInSheet = hasAttendedTodayInSheet;
 exports.getAttendanceRecords = getAttendanceRecords;
+exports.updateAttendanceInSheet = updateAttendanceInSheet;
 const googleapis_1 = require("googleapis");
 const config_1 = require("../config");
 const date_1 = require("../utils/date");
@@ -133,6 +134,61 @@ async function getAttendanceRecords() {
     catch (error) {
         console.error('Error fetching attendance records:', error);
         return [];
+    }
+}
+/**
+ * Update attendance record in Google Sheets
+ */
+async function updateAttendanceInSheet(nik, tanggal, updates) {
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Absensi!A:J',
+        });
+        const rows = response.data.values || [];
+        let rowIndex = -1;
+        // Find the row with matching NIK and date
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            const rowDate = row[0]?.toString().split(' ')[0]; // Get date part
+            const rowNik = row[1]?.toString();
+            if (rowDate === tanggal && rowNik === nik) {
+                rowIndex = i + 1; // +1 because sheets are 1-indexed
+                break;
+            }
+        }
+        if (rowIndex === -1) {
+            console.error('Row not found for update');
+            return false;
+        }
+        // Prepare update data
+        const updateData = [];
+        const updateRanges = [];
+        if (updates.jadwalMasuk) {
+            updateRanges.push(`Absensi!D${rowIndex}`);
+            updateData.push([[updates.jadwalMasuk]]);
+        }
+        if (updates.keterangan) {
+            updateRanges.push(`Absensi!E${rowIndex}`);
+            updateData.push([[updates.keterangan]]);
+        }
+        // Batch update
+        for (let i = 0; i < updateRanges.length; i++) {
+            await sheets.spreadsheets.values.update({
+                spreadsheetId: SPREADSHEET_ID,
+                range: updateRanges[i],
+                valueInputOption: 'USER_ENTERED',
+                requestBody: {
+                    values: updateData[i],
+                },
+            });
+        }
+        console.log(`Updated attendance for NIK ${nik} on ${tanggal}`);
+        return true;
+    }
+    catch (error) {
+        console.error('Error updating attendance in Sheets:', error);
+        return false;
     }
 }
 //# sourceMappingURL=sheets.js.map

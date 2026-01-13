@@ -2,6 +2,26 @@ import { Context } from 'grammy';
 import { rekapHarian, rekapMingguan, rekapBulanan } from '../services/rekap';
 import { config } from '../config';
 
+// Admin username yang diizinkan
+const ADMIN_USERNAME = 'alfiyyann';
+
+/**
+ * Check if user is admin
+ */
+function isAdmin(ctx: Context): boolean {
+  const username = ctx.from?.username?.toLowerCase();
+  return username === ADMIN_USERNAME;
+}
+
+/**
+ * Send unauthorized message
+ */
+async function sendUnauthorized(ctx: Context): Promise<void> {
+  await ctx.reply('Aku gamau respon kamu. 😒', {
+    parse_mode: 'HTML',
+  });
+}
+
 /**
  * Handle /rekapharian command
  */
@@ -10,6 +30,12 @@ export async function handleRekapHarian(ctx: Context): Promise<void> {
 
   // Only allow in configured group
   if (chatId?.toString() !== config.GROUP_ID) {
+    return;
+  }
+
+  // Only allow admin
+  if (!isAdmin(ctx)) {
+    await sendUnauthorized(ctx);
     return;
   }
 
@@ -44,6 +70,12 @@ export async function handleRekapMingguan(ctx: Context): Promise<void> {
     return;
   }
 
+  // Only allow admin
+  if (!isAdmin(ctx)) {
+    await sendUnauthorized(ctx);
+    return;
+  }
+
   try {
     const result = await rekapMingguan();
 
@@ -72,6 +104,12 @@ export async function handleRekapBulanan(ctx: Context): Promise<void> {
 
   // Only allow in configured group
   if (chatId?.toString() !== config.GROUP_ID) {
+    return;
+  }
+
+  // Only allow admin
+  if (!isAdmin(ctx)) {
+    await sendUnauthorized(ctx);
     return;
   }
 
