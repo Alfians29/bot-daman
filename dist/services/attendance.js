@@ -128,22 +128,15 @@ async function getValidCommandsForUnit(unit) {
 }
 /**
  * Check if user has already attended today
+ * Always uses spreadsheet as the source of truth for ALL users
  */
 async function hasAttendedToday(user) {
-    const today = (0, date_1.getTodayStart)();
-    const todayStr = (0, date_1.formatTanggal)(today);
-    // For Daman users (from User table), check database
-    if (user.source === 'USER') {
-        const existing = await prisma_1.prisma.attendance.findFirst({
-            where: {
-                memberId: user.id,
-                tanggal: today,
-            },
-        });
-        return !!existing;
-    }
-    // For SDI users, check spreadsheet
-    return await (0, sheets_1.hasAttendedTodayInSheet)(user.nik, todayStr);
+    const now = (0, date_1.getNow)();
+    const day = now.getDate();
+    const month = now.getMonth() + 1; // getMonth() is 0-indexed, spreadsheet uses 1-indexed
+    const year = now.getFullYear();
+    // Always check spreadsheet for ALL users (spreadsheet is the source of truth)
+    return await (0, sheets_1.hasAttendedTodayInSheet)(user.nik, day, month, year);
 }
 /**
  * Normalize command for comparison
@@ -245,10 +238,26 @@ async function recordAttendance(user, command, photoUrl, telegramMessageId, tele
         if (user.source === 'USER') {
             const today = (0, date_1.getTodayStart)();
             const shiftType = commandToShiftType(command);
-            await prisma_1.prisma.attendance.create({
-                data: {
+            await prisma_1.prisma.attendance.upsert({
+                where: {
+                    memberId_tanggal: {
+                        memberId: user.id,
+                        tanggal: today,
+                    },
+                },
+                update: {
+                    jamAbsen: jamAbsen,
+                    keterangan: shiftType,
+                    status: late ? client_1.AttendanceStatus.TELAT : client_1.AttendanceStatus.ONTIME,
+                    usernameTelegram: user.usernameTelegram,
+                    source: client_1.AttendanceSource.TELEGRAM_BOT,
+                    telegramMessageId: telegramMessageId,
+                    telegramChatId: telegramChatId,
+                    photoUrl: photoUrl,
+                },
+                create: {
                     id: (0, crypto_1.randomUUID)(),
-                    memberId: user.id, // This is the User.id from User table
+                    memberId: user.id,
                     tanggal: today,
                     jamAbsen: jamAbsen,
                     keterangan: shiftType,
@@ -282,36 +291,24 @@ async function recordAttendance(user, command, photoUrl, telegramMessageId, tele
 }
 /**
  * Get today's attendance for a user (for /cekabsen)
+ * Always uses spreadsheet as the source of truth for ALL users
  */
 async function getTodayAttendance(user) {
-    const today = (0, date_1.getTodayStart)();
-    const todayStr = (0, date_1.formatTanggal)(today);
-    // For Daman users, check database first
-    if (user.source === 'USER') {
-        const record = await prisma_1.prisma.attendance.findFirst({
-            where: {
-                memberId: user.id,
-                tanggal: today,
-            },
-        });
-        if (record) {
-            return {
-                waktu: record.createdAt,
-                nik: user.nik,
-                nama: user.nama,
-                jadwalMasuk: '07.30-16.30 WIB', // Default
-                keterangan: record.keterangan,
-                linkFoto: record.photoUrl || '',
-                jamAbsen: record.jamAbsen,
-                status: record.status === 'ONTIME' ? 'Ontime' : 'Telat',
-                unit: user.unit,
-                bulan: (0, date_1.formatBulan)(record.tanggal),
-            };
-        }
-    }
-    // For SDI users or if not found in DB, check spreadsheet
+    const now = (0, date_1.getNow)();
+    const todayStr = (0, date_1.formatTanggal)(now);
+    // Always use spreadsheet for ALL users (spreadsheet is the source of truth)
     const { getAttendanceRecords } = await Promise.resolve().then(() => __importStar(require('./sheets')));
     const records = await getAttendanceRecords();
-    return (records.find((r) => r.nik === user.nik && (0, date_1.formatTanggal)(r.waktu) === todayStr) || null);
+    // Compare using date parts to avoid timezone issues
+    const todayDay = now.getDate();
+    const todayMonth = now.getMonth();
+    const todayYear = now.getFullYear();
+    return (records.find((r) => {
+        const recDate = r.waktu;
+        return (r.nik === user.nik &&
+            recDate.getDate() === todayDay &&
+            recDate.getMonth() === todayMonth &&
+            recDate.getFullYear() === todayYear);
+    }) || null);
 }
 //# sourceMappingURL=attendance.js.map

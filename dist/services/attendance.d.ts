@@ -38,6 +38,7 @@ export declare function getCommandByUnitAndCommand(unit: string, command: string
 export declare function getValidCommandsForUnit(unit: string): Promise<string[]>;
 /**
  * Check if user has already attended today
+ * Always uses spreadsheet as the source of truth for ALL users
  */
 export declare function hasAttendedToday(user: BotUserData): Promise<boolean>;
 /**
@@ -71,6 +72,7 @@ export interface AttendanceResult {
 export declare function recordAttendance(user: BotUserData, command: string, photoUrl: string, telegramMessageId?: string, telegramChatId?: string): Promise<AttendanceResult>;
 /**
  * Get today's attendance for a user (for /cekabsen)
+ * Always uses spreadsheet as the source of truth for ALL users
  */
 export declare function getTodayAttendance(user: BotUserData): Promise<SheetAttendanceData | null>;
 //# sourceMappingURL=attendance.d.ts.map

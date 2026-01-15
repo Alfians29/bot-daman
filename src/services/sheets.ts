@@ -1,12 +1,7 @@
 import { google } from 'googleapis';
+import { formatInTimeZone } from 'date-fns-tz';
 import { config } from '../config';
-import {
-  formatTanggal,
-  formatJam,
-  formatBulan,
-  getNow,
-  formatLogTimestamp,
-} from '../utils/date';
+import { formatTanggal, getNow, formatLogTimestamp } from '../utils/date';
 
 // Google Sheets API setup
 const auth = new google.auth.GoogleAuth({
@@ -45,7 +40,9 @@ export async function appendAttendance(
   try {
     const now = getNow();
     const row = [
-      formatTanggal(data.waktu) + ' ' + formatJam(data.waktu), // Waktu
+      formatTanggal(data.waktu) +
+        ' ' +
+        formatInTimeZone(data.waktu, 'Asia/Jakarta', 'H:mm:ss'), // Waktu with seconds
       data.nik, // NIK
       data.nama, // Nama
       data.jadwalMasuk, // Jadwal Masuk
@@ -66,6 +63,9 @@ export async function appendAttendance(
       },
     });
 
+    // Invalidate cache after adding new attendance
+    invalidateAttendanceCache();
+
     console.log(`${formatLogTimestamp(now)} ${data.nama} berhasil absen`);
   } catch (error) {
     console.error('❌ Error saving to Google Sheets:', error);
@@ -75,10 +75,13 @@ export async function appendAttendance(
 
 /**
  * Check if user has already attended today (from Sheets)
+ * Uses date parts comparison to avoid timezone/format issues
  */
 export async function hasAttendedTodayInSheet(
   nik: string,
-  tanggal: string
+  day: number,
+  month: number,
+  year: number
 ): Promise<boolean> {
   try {
     const response = await sheets.spreadsheets.values.get({
@@ -89,11 +92,21 @@ export async function hasAttendedTodayInSheet(
     const rows = response.data.values || [];
 
     for (const row of rows) {
-      const rowDate = row[0]?.toString().split(' ')[0]; // Get date part from "dd/MM/yyyy HH:mm"
       const rowNik = row[1]?.toString();
+      if (rowNik !== nik) continue;
 
-      if (rowDate === tanggal && rowNik === nik) {
-        return true;
+      // Parse date from "dd/MM/yyyy HH:mm" format
+      const waktuStr = row[0]?.toString() || '';
+      const dateParts = waktuStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+
+      if (dateParts) {
+        const rowDay = parseInt(dateParts[1], 10);
+        const rowMonth = parseInt(dateParts[2], 10);
+        const rowYear = parseInt(dateParts[3], 10);
+
+        if (rowDay === day && rowMonth === month && rowYear === year) {
+          return true;
+        }
       }
     }
 
@@ -104,11 +117,42 @@ export async function hasAttendedTodayInSheet(
   }
 }
 
+// ============================================
+// CACHE MECHANISM
+// ============================================
+
+interface CacheData {
+  records: SheetAttendanceData[];
+  timestamp: number;
+}
+
+// Simple in-memory cache (3 minutes TTL)
+const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+let attendanceCache: CacheData | null = null;
+
 /**
- * Get attendance records for rekap
+ * Invalidate cache (call after new attendance is added)
+ */
+export function invalidateAttendanceCache(): void {
+  attendanceCache = null;
+  console.log('📦 Attendance cache invalidated');
+}
+
+/**
+ * Get attendance records for rekap (with caching)
  */
 export async function getAttendanceRecords(): Promise<SheetAttendanceData[]> {
+  // Check if cache is valid
+  if (
+    attendanceCache &&
+    Date.now() - attendanceCache.timestamp < CACHE_TTL_MS
+  ) {
+    console.log('📦 Using cached attendance records');
+    return attendanceCache.records;
+  }
+
   try {
+    console.log('📥 Fetching attendance records from spreadsheet...');
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: 'Absensi!A:J',
@@ -165,6 +209,13 @@ export async function getAttendanceRecords(): Promise<SheetAttendanceData[]> {
         bulan: row[9] || '',
       });
     }
+
+    // Update cache
+    attendanceCache = {
+      records,
+      timestamp: Date.now(),
+    };
+    console.log(`📦 Cached ${records.length} attendance records`);
 
     return records;
   } catch (error) {

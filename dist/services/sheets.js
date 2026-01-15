@@ -2,9 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.appendAttendance = appendAttendance;
 exports.hasAttendedTodayInSheet = hasAttendedTodayInSheet;
+exports.invalidateAttendanceCache = invalidateAttendanceCache;
 exports.getAttendanceRecords = getAttendanceRecords;
 exports.updateAttendanceInSheet = updateAttendanceInSheet;
 const googleapis_1 = require("googleapis");
+const date_fns_tz_1 = require("date-fns-tz");
 const config_1 = require("../config");
 const date_1 = require("../utils/date");
 // Google Sheets API setup
@@ -24,7 +26,9 @@ async function appendAttendance(data) {
     try {
         const now = (0, date_1.getNow)();
         const row = [
-            (0, date_1.formatTanggal)(data.waktu) + ' ' + (0, date_1.formatJam)(data.waktu), // Waktu
+            (0, date_1.formatTanggal)(data.waktu) +
+                ' ' +
+                (0, date_fns_tz_1.formatInTimeZone)(data.waktu, 'Asia/Jakarta', 'H:mm:ss'), // Waktu with seconds
             data.nik, // NIK
             data.nama, // Nama
             data.jadwalMasuk, // Jadwal Masuk
@@ -43,6 +47,8 @@ async function appendAttendance(data) {
                 values: [row],
             },
         });
+        // Invalidate cache after adding new attendance
+        invalidateAttendanceCache();
         console.log(`${(0, date_1.formatLogTimestamp)(now)} ${data.nama} berhasil absen`);
     }
     catch (error) {
@@ -52,8 +58,9 @@ async function appendAttendance(data) {
 }
 /**
  * Check if user has already attended today (from Sheets)
+ * Uses date parts comparison to avoid timezone/format issues
  */
-async function hasAttendedTodayInSheet(nik, tanggal) {
+async function hasAttendedTodayInSheet(nik, day, month, year) {
     try {
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -61,10 +68,19 @@ async function hasAttendedTodayInSheet(nik, tanggal) {
         });
         const rows = response.data.values || [];
         for (const row of rows) {
-            const rowDate = row[0]?.toString().split(' ')[0]; // Get date part from "dd/MM/yyyy HH:mm"
             const rowNik = row[1]?.toString();
-            if (rowDate === tanggal && rowNik === nik) {
-                return true;
+            if (rowNik !== nik)
+                continue;
+            // Parse date from "dd/MM/yyyy HH:mm" format
+            const waktuStr = row[0]?.toString() || '';
+            const dateParts = waktuStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+            if (dateParts) {
+                const rowDay = parseInt(dateParts[1], 10);
+                const rowMonth = parseInt(dateParts[2], 10);
+                const rowYear = parseInt(dateParts[3], 10);
+                if (rowDay === day && rowMonth === month && rowYear === year) {
+                    return true;
+                }
             }
         }
         return false;
@@ -74,11 +90,28 @@ async function hasAttendedTodayInSheet(nik, tanggal) {
         return false;
     }
 }
+// Simple in-memory cache (3 minutes TTL)
+const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+let attendanceCache = null;
 /**
- * Get attendance records for rekap
+ * Invalidate cache (call after new attendance is added)
+ */
+function invalidateAttendanceCache() {
+    attendanceCache = null;
+    console.log('📦 Attendance cache invalidated');
+}
+/**
+ * Get attendance records for rekap (with caching)
  */
 async function getAttendanceRecords() {
+    // Check if cache is valid
+    if (attendanceCache &&
+        Date.now() - attendanceCache.timestamp < CACHE_TTL_MS) {
+        console.log('📦 Using cached attendance records');
+        return attendanceCache.records;
+    }
     try {
+        console.log('📥 Fetching attendance records from spreadsheet...');
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: 'Absensi!A:J',
@@ -129,6 +162,12 @@ async function getAttendanceRecords() {
                 bulan: row[9] || '',
             });
         }
+        // Update cache
+        attendanceCache = {
+            records,
+            timestamp: Date.now(),
+        };
+        console.log(`📦 Cached ${records.length} attendance records`);
         return records;
     }
     catch (error) {
@@ -183,7 +222,6 @@ async function updateAttendanceInSheet(nik, tanggal, updates) {
                 },
             });
         }
-        console.log(`Updated attendance for NIK ${nik} on ${tanggal}`);
         return true;
     }
     catch (error) {

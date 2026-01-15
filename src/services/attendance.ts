@@ -1,15 +1,12 @@
 import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
-import { config } from '../config';
 import {
   getNow,
   formatTanggal,
   formatJam,
   formatBulan,
-  isLate,
   isLateByTime,
   getTodayStart,
-  formatLogTimestamp,
 } from '../utils/date';
 import {
   appendAttendance,
@@ -141,24 +138,16 @@ export async function getValidCommandsForUnit(unit: string): Promise<string[]> {
 
 /**
  * Check if user has already attended today
+ * Always uses spreadsheet as the source of truth for ALL users
  */
 export async function hasAttendedToday(user: BotUserData): Promise<boolean> {
-  const today = getTodayStart();
-  const todayStr = formatTanggal(today);
+  const now = getNow();
+  const day = now.getDate();
+  const month = now.getMonth() + 1; // getMonth() is 0-indexed, spreadsheet uses 1-indexed
+  const year = now.getFullYear();
 
-  // For Daman users (from User table), check database
-  if (user.source === 'USER') {
-    const existing = await prisma.attendance.findFirst({
-      where: {
-        memberId: user.id,
-        tanggal: today,
-      },
-    });
-    return !!existing;
-  }
-
-  // For SDI users, check spreadsheet
-  return await hasAttendedTodayInSheet(user.nik, todayStr);
+  // Always check spreadsheet for ALL users (spreadsheet is the source of truth)
+  return await hasAttendedTodayInSheet(user.nik, day, month, year);
 }
 
 /**
@@ -300,10 +289,26 @@ export async function recordAttendance(
       const today = getTodayStart();
       const shiftType = commandToShiftType(command);
 
-      await prisma.attendance.create({
-        data: {
+      await prisma.attendance.upsert({
+        where: {
+          memberId_tanggal: {
+            memberId: user.id,
+            tanggal: today,
+          },
+        },
+        update: {
+          jamAbsen: jamAbsen,
+          keterangan: shiftType,
+          status: late ? AttendanceStatus.TELAT : AttendanceStatus.ONTIME,
+          usernameTelegram: user.usernameTelegram,
+          source: AttendanceSource.TELEGRAM_BOT,
+          telegramMessageId: telegramMessageId,
+          telegramChatId: telegramChatId,
+          photoUrl: photoUrl,
+        },
+        create: {
           id: randomUUID(),
-          memberId: user.id, // This is the User.id from User table
+          memberId: user.id,
           tanggal: today,
           jamAbsen: jamAbsen,
           keterangan: shiftType,
@@ -338,45 +343,32 @@ export async function recordAttendance(
 
 /**
  * Get today's attendance for a user (for /cekabsen)
+ * Always uses spreadsheet as the source of truth for ALL users
  */
 export async function getTodayAttendance(
   user: BotUserData
 ): Promise<SheetAttendanceData | null> {
-  const today = getTodayStart();
-  const todayStr = formatTanggal(today);
+  const now = getNow();
+  const todayStr = formatTanggal(now);
 
-  // For Daman users, check database first
-  if (user.source === 'USER') {
-    const record = await prisma.attendance.findFirst({
-      where: {
-        memberId: user.id,
-        tanggal: today,
-      },
-    });
-
-    if (record) {
-      return {
-        waktu: record.createdAt,
-        nik: user.nik,
-        nama: user.nama,
-        jadwalMasuk: '07.30-16.30 WIB', // Default
-        keterangan: record.keterangan,
-        linkFoto: record.photoUrl || '',
-        jamAbsen: record.jamAbsen,
-        status: record.status === 'ONTIME' ? 'Ontime' : 'Telat',
-        unit: user.unit,
-        bulan: formatBulan(record.tanggal),
-      };
-    }
-  }
-
-  // For SDI users or if not found in DB, check spreadsheet
+  // Always use spreadsheet for ALL users (spreadsheet is the source of truth)
   const { getAttendanceRecords } = await import('./sheets');
   const records = await getAttendanceRecords();
 
+  // Compare using date parts to avoid timezone issues
+  const todayDay = now.getDate();
+  const todayMonth = now.getMonth();
+  const todayYear = now.getFullYear();
+
   return (
-    records.find(
-      (r) => r.nik === user.nik && formatTanggal(r.waktu) === todayStr
-    ) || null
+    records.find((r) => {
+      const recDate = r.waktu;
+      return (
+        r.nik === user.nik &&
+        recDate.getDate() === todayDay &&
+        recDate.getMonth() === todayMonth &&
+        recDate.getFullYear() === todayYear
+      );
+    }) || null
   );
 }

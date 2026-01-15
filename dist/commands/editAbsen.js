@@ -107,6 +107,8 @@ async function handleEditAbsen(ctx) {
             jadwalMasuk: jadwal,
             keterangan: keterangan,
         });
+        const now = (0, date_1.getNow)();
+        console.log(`${(0, date_1.formatLogTimestamp)(now)} Jadwal masuk ${targetUser.nama} diubah menjadi ${keterangan} oleh admin`);
         await ctx.reply(`✅ <b>Absensi berhasil diupdate!</b>\n\n` +
             `👤 ${targetUser.nama}\n` +
             `├ Jadwal baru: ${jadwal}\n` +
