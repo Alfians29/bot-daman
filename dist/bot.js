@@ -8,22 +8,42 @@ const cekAbsen_1 = require("./commands/cekAbsen");
 const help_1 = require("./commands/help");
 const rekap_1 = require("./commands/rekap");
 const editAbsen_1 = require("./commands/editAbsen");
+const logger_1 = require("./utils/logger");
 /**
  * Create and configure the Telegram bot
  */
 function createBot() {
     (0, config_1.validateConfig)();
     const bot = new grammy_1.Bot(config_1.config.BOT_TOKEN);
-    // Command handlers
-    bot.command('help', help_1.handleHelp);
-    bot.command('cekabsen', cekAbsen_1.handleCekAbsen);
-    bot.command('rekapharian', rekap_1.handleRekapHarian);
-    bot.command('rekapmingguan', rekap_1.handleRekapMingguan);
-    bot.command('rekapbulanan', rekap_1.handleRekapBulanan);
-    bot.command('editabsen', editAbsen_1.handleEditAbsen);
+    // Command handlers with logging
+    bot.command('help', (ctx) => {
+        (0, logger_1.logCommand)('help', ctx.from?.username, ctx.from?.id);
+        return (0, help_1.handleHelp)(ctx);
+    });
+    bot.command('cekabsen', (ctx) => {
+        (0, logger_1.logCommand)('cekabsen', ctx.from?.username, ctx.from?.id);
+        return (0, cekAbsen_1.handleCekAbsen)(ctx);
+    });
+    bot.command('rekapharian', (ctx) => {
+        (0, logger_1.logCommand)('rekapharian', ctx.from?.username, ctx.from?.id);
+        return (0, rekap_1.handleRekapHarian)(ctx);
+    });
+    bot.command('rekapmingguan', (ctx) => {
+        (0, logger_1.logCommand)('rekapmingguan', ctx.from?.username, ctx.from?.id);
+        return (0, rekap_1.handleRekapMingguan)(ctx);
+    });
+    bot.command('rekapbulanan', (ctx) => {
+        (0, logger_1.logCommand)('rekapbulanan', ctx.from?.username, ctx.from?.id);
+        return (0, rekap_1.handleRekapBulanan)(ctx);
+    });
+    bot.command('editabsen', (ctx) => {
+        (0, logger_1.logCommand)('editabsen', ctx.from?.username, ctx.from?.id);
+        return (0, editAbsen_1.handleEditAbsen)(ctx);
+    });
     // Bot status command - admin only
     const botStartTime = new Date();
     bot.command('botstatus', async (ctx) => {
+        (0, logger_1.logCommand)('botstatus', ctx.from?.username, ctx.from?.id);
         const username = ctx.from?.username?.toLowerCase();
         // Only allow @alfiyyann
         if (username !== 'alfiyyann') {

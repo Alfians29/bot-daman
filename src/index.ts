@@ -3,7 +3,7 @@ dotenv.config();
 
 import { createBot } from './bot';
 import { prisma } from './lib/prisma';
-import { setupScheduler } from './services/scheduler';
+import { setupScheduler, setBotStartTime } from './services/scheduler';
 import { loadQueue, processQueue, saveQueue } from './utils/messageQueue';
 
 async function main() {
@@ -31,6 +31,7 @@ async function main() {
   console.log('🤖 Bot starting...');
   await bot.start({
     onStart: async (info) => {
+      setBotStartTime();
       console.log(`✅ Bot @${info.username} started successfully!`);
       console.log('📌 Listening for messages...');
 

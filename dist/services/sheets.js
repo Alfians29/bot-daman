@@ -9,6 +9,7 @@ const googleapis_1 = require("googleapis");
 const date_fns_tz_1 = require("date-fns-tz");
 const config_1 = require("../config");
 const date_1 = require("../utils/date");
+const logger_1 = require("../utils/logger");
 // Google Sheets API setup
 const auth = new googleapis_1.google.auth.GoogleAuth({
     credentials: {
@@ -24,7 +25,6 @@ const SPREADSHEET_ID = config_1.config.GOOGLE_SHEETS_ID;
  */
 async function appendAttendance(data) {
     try {
-        const now = (0, date_1.getNow)();
         const row = [
             (0, date_1.formatTanggal)(data.waktu) +
                 ' ' +
@@ -49,10 +49,10 @@ async function appendAttendance(data) {
         });
         // Invalidate cache after adding new attendance
         invalidateAttendanceCache();
-        console.log(`${(0, date_1.formatLogTimestamp)(now)} ${data.nama} berhasil absen`);
+        (0, logger_1.logAttendance)(data.nama);
     }
     catch (error) {
-        console.error('❌ Error saving to Google Sheets:', error);
+        (0, logger_1.logError)('Error saving to Google Sheets: ' + error);
         throw error;
     }
 }
@@ -98,7 +98,6 @@ let attendanceCache = null;
  */
 function invalidateAttendanceCache() {
     attendanceCache = null;
-    console.log('📦 Attendance cache invalidated');
 }
 /**
  * Get attendance records for rekap (with caching)
@@ -107,11 +106,9 @@ async function getAttendanceRecords() {
     // Check if cache is valid
     if (attendanceCache &&
         Date.now() - attendanceCache.timestamp < CACHE_TTL_MS) {
-        console.log('📦 Using cached attendance records');
         return attendanceCache.records;
     }
     try {
-        console.log('📥 Fetching attendance records from spreadsheet...');
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: 'Absensi!A:J',
@@ -167,7 +164,6 @@ async function getAttendanceRecords() {
             records,
             timestamp: Date.now(),
         };
-        console.log(`📦 Cached ${records.length} attendance records`);
         return records;
     }
     catch (error) {

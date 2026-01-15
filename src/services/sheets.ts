@@ -1,7 +1,8 @@
 import { google } from 'googleapis';
 import { formatInTimeZone } from 'date-fns-tz';
 import { config } from '../config';
-import { formatTanggal, getNow, formatLogTimestamp } from '../utils/date';
+import { formatTanggal } from '../utils/date';
+import { logAttendance, logError } from '../utils/logger';
 
 // Google Sheets API setup
 const auth = new google.auth.GoogleAuth({
@@ -38,7 +39,6 @@ export async function appendAttendance(
   data: SheetAttendanceData
 ): Promise<void> {
   try {
-    const now = getNow();
     const row = [
       formatTanggal(data.waktu) +
         ' ' +
@@ -66,9 +66,9 @@ export async function appendAttendance(
     // Invalidate cache after adding new attendance
     invalidateAttendanceCache();
 
-    console.log(`${formatLogTimestamp(now)} ${data.nama} berhasil absen`);
+    logAttendance(data.nama);
   } catch (error) {
-    console.error('❌ Error saving to Google Sheets:', error);
+    logError('Error saving to Google Sheets: ' + error);
     throw error;
   }
 }
@@ -135,7 +135,6 @@ let attendanceCache: CacheData | null = null;
  */
 export function invalidateAttendanceCache(): void {
   attendanceCache = null;
-  console.log('📦 Attendance cache invalidated');
 }
 
 /**
@@ -147,12 +146,10 @@ export async function getAttendanceRecords(): Promise<SheetAttendanceData[]> {
     attendanceCache &&
     Date.now() - attendanceCache.timestamp < CACHE_TTL_MS
   ) {
-    console.log('📦 Using cached attendance records');
     return attendanceCache.records;
   }
 
   try {
-    console.log('📥 Fetching attendance records from spreadsheet...');
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: 'Absensi!A:J',
@@ -215,7 +212,6 @@ export async function getAttendanceRecords(): Promise<SheetAttendanceData[]> {
       records,
       timestamp: Date.now(),
     };
-    console.log(`📦 Cached ${records.length} attendance records`);
 
     return records;
   } catch (error) {

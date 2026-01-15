@@ -9,6 +9,7 @@ import {
   handleRekapBulanan,
 } from './commands/rekap';
 import { handleEditAbsen } from './commands/editAbsen';
+import { logCommand } from './utils/logger';
 
 /**
  * Create and configure the Telegram bot
@@ -18,17 +19,36 @@ export function createBot(): Bot {
 
   const bot = new Bot(config.BOT_TOKEN);
 
-  // Command handlers
-  bot.command('help', handleHelp);
-  bot.command('cekabsen', handleCekAbsen);
-  bot.command('rekapharian', handleRekapHarian);
-  bot.command('rekapmingguan', handleRekapMingguan);
-  bot.command('rekapbulanan', handleRekapBulanan);
-  bot.command('editabsen', handleEditAbsen);
+  // Command handlers with logging
+  bot.command('help', (ctx) => {
+    logCommand('help', ctx.from?.username, ctx.from?.id);
+    return handleHelp(ctx);
+  });
+  bot.command('cekabsen', (ctx) => {
+    logCommand('cekabsen', ctx.from?.username, ctx.from?.id);
+    return handleCekAbsen(ctx);
+  });
+  bot.command('rekapharian', (ctx) => {
+    logCommand('rekapharian', ctx.from?.username, ctx.from?.id);
+    return handleRekapHarian(ctx);
+  });
+  bot.command('rekapmingguan', (ctx) => {
+    logCommand('rekapmingguan', ctx.from?.username, ctx.from?.id);
+    return handleRekapMingguan(ctx);
+  });
+  bot.command('rekapbulanan', (ctx) => {
+    logCommand('rekapbulanan', ctx.from?.username, ctx.from?.id);
+    return handleRekapBulanan(ctx);
+  });
+  bot.command('editabsen', (ctx) => {
+    logCommand('editabsen', ctx.from?.username, ctx.from?.id);
+    return handleEditAbsen(ctx);
+  });
 
   // Bot status command - admin only
   const botStartTime = new Date();
   bot.command('botstatus', async (ctx) => {
+    logCommand('botstatus', ctx.from?.username, ctx.from?.id);
     const username = ctx.from?.username?.toLowerCase();
 
     // Only allow @alfiyyann

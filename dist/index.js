@@ -30,6 +30,7 @@ async function main() {
     console.log('🤖 Bot starting...');
     await bot.start({
         onStart: async (info) => {
+            (0, scheduler_1.setBotStartTime)();
             console.log(`✅ Bot @${info.username} started successfully!`);
             console.log('📌 Listening for messages...');
             // Process any pending messages from queue
