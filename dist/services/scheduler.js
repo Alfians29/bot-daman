@@ -135,15 +135,15 @@ function setupScheduler(bot) {
     });
     console.log('  📅 Day Change Log: Every day at 00:00 WIB');
     // ============================================
-    // HEARTBEAT LOG - Every 6 hours (4x daily)
+    // HEARTBEAT LOG - Once daily at 00:00 WIB
     // ============================================
-    // Cron: "0 0,6,12,18 * * *" = At 00:00, 06:00, 12:00, 18:00 every day
-    node_cron_1.default.schedule('0 0,6,12,18 * * *', () => {
+    // Cron: "0 0 * * *" = At 00:00 every day
+    node_cron_1.default.schedule('0 0 * * *', () => {
         logHeartbeat();
     }, {
         timezone: 'Asia/Jakarta',
     });
-    console.log('  💓 Heartbeat Log: Every 6 hours (00:00, 06:00, 12:00, 18:00 WIB)');
+    console.log('  💓 Heartbeat Log: Every day at 00:00 WIB');
     // ============================================
     // REMINDER ABSENSI - Every day at 07:00 WIB
     // ============================================

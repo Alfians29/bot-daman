@@ -79,7 +79,7 @@ function logHeartbeat(): void {
     const uptimeMs = now.getTime() - botStartTime.getTime();
     const days = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
     const hours = Math.floor(
-      (uptimeMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      (uptimeMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
     );
     const minutes = Math.floor((uptimeMs % (1000 * 60 * 60)) / (1000 * 60));
 
@@ -153,26 +153,24 @@ export function setupScheduler(bot: Bot): void {
     },
     {
       timezone: 'Asia/Jakarta',
-    }
+    },
   );
   console.log('  📅 Day Change Log: Every day at 00:00 WIB');
 
   // ============================================
-  // HEARTBEAT LOG - Every 6 hours (4x daily)
+  // HEARTBEAT LOG - Once daily at 00:00 WIB
   // ============================================
-  // Cron: "0 0,6,12,18 * * *" = At 00:00, 06:00, 12:00, 18:00 every day
+  // Cron: "0 0 * * *" = At 00:00 every day
   cron.schedule(
-    '0 0,6,12,18 * * *',
+    '0 0 * * *',
     () => {
       logHeartbeat();
     },
     {
       timezone: 'Asia/Jakarta',
-    }
+    },
   );
-  console.log(
-    '  💓 Heartbeat Log: Every 6 hours (00:00, 06:00, 12:00, 18:00 WIB)'
-  );
+  console.log('  💓 Heartbeat Log: Every day at 00:00 WIB');
 
   // ============================================
   // REMINDER ABSENSI - Every day at 07:00 WIB
@@ -191,7 +189,7 @@ export function setupScheduler(bot: Bot): void {
     },
     {
       timezone: 'Asia/Jakarta',
-    }
+    },
   );
   console.log('  ✅ Reminder Absensi: Every day at 07:00 WIB');
 
@@ -217,7 +215,7 @@ export function setupScheduler(bot: Bot): void {
     },
     {
       timezone: 'Asia/Jakarta',
-    }
+    },
   );
   console.log('  ✅ Rekap Harian: Every day at 17:00 WIB');
 
@@ -243,7 +241,7 @@ export function setupScheduler(bot: Bot): void {
     },
     {
       timezone: 'Asia/Jakarta',
-    }
+    },
   );
   console.log('  ✅ Rekap Mingguan: Every Friday at 17:05 WIB');
 
@@ -269,7 +267,7 @@ export function setupScheduler(bot: Bot): void {
     },
     {
       timezone: 'Asia/Jakarta',
-    }
+    },
   );
   console.log('  ✅ Rekap Bulanan: Every 15th at 17:10 WIB');
 
