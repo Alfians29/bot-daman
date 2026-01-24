@@ -16,18 +16,36 @@ const colors = {
 };
 
 /**
- * Get current time formatted as [HH:mm:ss]
+ * Get current time formatted as [YYYY-MM-DD HH:mm:ss]
+ * Matches web-daman log format
  */
 function getTimestamp(): string {
   const now = new Date();
-  const time = now.toLocaleString('id-ID', {
+
+  // Get Jakarta time components
+  const options: Intl.DateTimeFormatOptions = {
     timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-  });
-  return time;
+  };
+
+  const parts = new Intl.DateTimeFormat('en-CA', options).formatToParts(now);
+  const get = (type: string) =>
+    parts.find((p) => p.type === type)?.value || '00';
+
+  const year = get('year');
+  const month = get('month');
+  const day = get('day');
+  const hour = get('hour');
+  const minute = get('minute');
+  const second = get('second');
+
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
 /**
@@ -60,12 +78,12 @@ export function logError(message: string): void {
 export function logCommand(
   command: string,
   username?: string,
-  userId?: number
+  userId?: number,
 ): void {
   const userDisplay = username ? `@${username}` : `User`;
   const idDisplay = userId ? ` (ID: ${userId})` : '';
   console.log(
-    `${formatTimestamp()} 📩 /${command} from ${userDisplay}${idDisplay}`
+    `${formatTimestamp()} 📩 /${command} from ${userDisplay}${idDisplay}`,
   );
 }
 
@@ -75,7 +93,7 @@ export function logCommand(
  */
 export function logHeartbeat(uptime: string, memoryMB: number): void {
   console.log(
-    `${formatTimestamp()} 💓 Bot running • Uptime: ${uptime} • Memory: ${memoryMB}MB`
+    `${formatTimestamp()} 💓 Bot running • Uptime: ${uptime} • Memory: ${memoryMB}MB`,
   );
 }
 
@@ -101,7 +119,7 @@ export function logReminder(message: string): void {
  */
 export function logWarning(message: string): void {
   console.log(
-    `${formatTimestamp()} ${colors.yellow}⚠️ ${message}${colors.reset}`
+    `${formatTimestamp()} ${colors.yellow}⚠️ ${message}${colors.reset}`,
   );
 }
 
