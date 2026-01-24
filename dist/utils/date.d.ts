@@ -40,6 +40,7 @@ export declare function isLate(checkInTime: Date, jadwal: string): boolean;
 /**
  * Check if check-in time is late based on specific time string (HH:mm format)
  * Used for ShiftSetting.lateAfter field
+ * Returns true if checkInTime >= lateAfterTime (e.g., 07:36:00 and later is LATE)
  */
 export declare function isLateByTime(checkInTime: Date, lateAfterTime: string): boolean;
 /**

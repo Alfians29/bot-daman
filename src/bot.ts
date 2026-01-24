@@ -9,6 +9,7 @@ import {
   handleRekapBulanan,
 } from './commands/rekap';
 import { handleEditAbsen } from './commands/editAbsen';
+import { formatLogTimestamp, getNow } from './utils/date';
 
 /**
  * Create and configure the Telegram bot
@@ -17,6 +18,24 @@ export function createBot(): Bot {
   validateConfig();
 
   const bot = new Bot(config.BOT_TOKEN);
+
+  // Logging middleware - log all incoming messages/commands
+  bot.use(async (ctx, next) => {
+    const now = getNow();
+    const timestamp = formatLogTimestamp(now);
+    const username = ctx.from?.username ? `@${ctx.from.username}` : 'unknown';
+    const chatId = ctx.chat?.id || 'unknown';
+
+    // Get command or message type
+    const text = ctx.message?.text || ctx.message?.caption || '';
+    const command = text.startsWith('/') ? text.split(' ')[0] : null;
+
+    if (command) {
+      console.log(`${timestamp} ${command} from ${username} (ID: ${chatId})`);
+    }
+
+    await next();
+  });
 
   // Command handlers
   bot.command('help', handleHelp);
@@ -41,10 +60,10 @@ export function createBot(): Bot {
     const uptimeMs = now.getTime() - botStartTime.getTime();
     const uptimeDays = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
     const uptimeHours = Math.floor(
-      (uptimeMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      (uptimeMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
     );
     const uptimeMinutes = Math.floor(
-      (uptimeMs % (1000 * 60 * 60)) / (1000 * 60)
+      (uptimeMs % (1000 * 60 * 60)) / (1000 * 60),
     );
     const uptimeSeconds = Math.floor((uptimeMs % (1000 * 60)) / 1000);
 
@@ -109,7 +128,7 @@ export function createBot(): Bot {
           `DAMAN:\n• /pagi\n• /malam\n• /pagimalam\n• /piketpagi\n• /piketmalam\n\n` +
           `SDI:\n• /pagi\n• /piket\n\n` +
           `💡 <i>Pastikan penulisan command benar.</i>`,
-        { parse_mode: 'HTML' }
+        { parse_mode: 'HTML' },
       );
     }
   });
@@ -138,7 +157,7 @@ export function createBot(): Bot {
     if (isValidCmd) {
       await ctx.reply(
         '⚠️ <b>Absen harus menyertakan foto dengan caption sesuai jadwal.</b>',
-        { parse_mode: 'HTML' }
+        { parse_mode: 'HTML' },
       );
       return;
     }
@@ -162,7 +181,7 @@ export function createBot(): Bot {
           `DAMAN:\n• /pagi\n• /malam\n• /pagimalam\n• /piketpagi\n• /piketmalam\n\n` +
           `SDI:\n• /pagi\n• /piket\n\n` +
           `💡 <i>Pastikan penulisan command benar dan sertakan foto.</i>`,
-        { parse_mode: 'HTML' }
+        { parse_mode: 'HTML' },
       );
     }
   });

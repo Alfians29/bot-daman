@@ -183,7 +183,6 @@ async function updateAttendanceInSheet(nik, tanggal, updates) {
                 },
             });
         }
-        console.log(`Updated attendance for NIK ${nik} on ${tanggal}`);
         return true;
     }
     catch (error) {

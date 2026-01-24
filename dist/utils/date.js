@@ -110,18 +110,23 @@ function isLate(checkInTime, jadwal) {
 /**
  * Check if check-in time is late based on specific time string (HH:mm format)
  * Used for ShiftSetting.lateAfter field
+ * Returns true if checkInTime >= lateAfterTime (e.g., 07:36:00 and later is LATE)
  */
 function isLateByTime(checkInTime, lateAfterTime) {
     const now = getNow();
-    // Parse "07:35" or "07.35" -> { hour: 7, minute: 35 }
+    // Parse "07:36" or "07.36" -> { hour: 7, minute: 36 }
     const separator = lateAfterTime.includes(':') ? ':' : '.';
     const [hourStr, minuteStr] = lateAfterTime.split(separator);
     const hour = parseInt(hourStr, 10);
     const minute = parseInt(minuteStr || '0', 10);
-    // Create deadline date
+    // Create deadline date (e.g., 07:36:00.000)
     const deadline = new Date(now);
     deadline.setHours(hour, minute, 0, 0);
-    return (0, date_fns_1.isAfter)(checkInTime, deadline);
+    // Use !isBefore for >= comparison (late if checkInTime >= deadline)
+    // - 07:35:59 is BEFORE 07:36:00 -> isBefore=true -> !true=false -> ONTIME
+    // - 07:36:00 is NOT BEFORE 07:36:00 -> isBefore=false -> !false=true -> TELAT
+    // - 07:36:01 is NOT BEFORE 07:36:00 -> isBefore=false -> !false=true -> TELAT
+    return !(0, date_fns_1.isBefore)(checkInTime, deadline);
 }
 /**
  * Format full date for display: "18 Desember 2025"

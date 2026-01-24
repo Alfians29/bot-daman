@@ -8,12 +8,27 @@ const cekAbsen_1 = require("./commands/cekAbsen");
 const help_1 = require("./commands/help");
 const rekap_1 = require("./commands/rekap");
 const editAbsen_1 = require("./commands/editAbsen");
+const date_1 = require("./utils/date");
 /**
  * Create and configure the Telegram bot
  */
 function createBot() {
     (0, config_1.validateConfig)();
     const bot = new grammy_1.Bot(config_1.config.BOT_TOKEN);
+    // Logging middleware - log all incoming messages/commands
+    bot.use(async (ctx, next) => {
+        const now = (0, date_1.getNow)();
+        const timestamp = (0, date_1.formatLogTimestamp)(now);
+        const username = ctx.from?.username ? `@${ctx.from.username}` : 'unknown';
+        const chatId = ctx.chat?.id || 'unknown';
+        // Get command or message type
+        const text = ctx.message?.text || ctx.message?.caption || '';
+        const command = text.startsWith('/') ? text.split(' ')[0] : null;
+        if (command) {
+            console.log(`${timestamp} ${command} from ${username} (ID: ${chatId})`);
+        }
+        await next();
+    });
     // Command handlers
     bot.command('help', help_1.handleHelp);
     bot.command('cekabsen', cekAbsen_1.handleCekAbsen);
