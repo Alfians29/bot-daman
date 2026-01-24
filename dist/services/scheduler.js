@@ -125,26 +125,6 @@ async function sendDailyReminder(bot) {
 function setupScheduler(bot) {
     console.log('🕐 Setting up scheduled jobs...');
     // ============================================
-    // DAY CHANGE LOG - Every day at 00:00 WIB
-    // ============================================
-    // Cron: "0 0 * * *" = At 00:00 every day
-    node_cron_1.default.schedule('0 0 * * *', () => {
-        logDayChange();
-    }, {
-        timezone: 'Asia/Jakarta',
-    });
-    console.log('  📅 Day Change Log: Every day at 00:00 WIB');
-    // ============================================
-    // HEARTBEAT LOG - Once daily at 00:00 WIB
-    // ============================================
-    // Cron: "0 0 * * *" = At 00:00 every day
-    node_cron_1.default.schedule('0 0 * * *', () => {
-        logHeartbeat();
-    }, {
-        timezone: 'Asia/Jakarta',
-    });
-    console.log('  💓 Heartbeat Log: Every day at 00:00 WIB');
-    // ============================================
     // REMINDER ABSENSI - Every day at 07:00 WIB
     // ============================================
     // Cron: "0 7 * * *" = At 07:00 every day

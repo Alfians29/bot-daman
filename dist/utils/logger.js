@@ -25,18 +25,31 @@ const colors = {
     cyan: '\x1b[36m',
 };
 /**
- * Get current time formatted as [HH:mm:ss]
+ * Get current time formatted as [YYYY-MM-DD HH:mm:ss]
+ * Matches web-daman log format
  */
 function getTimestamp() {
     const now = new Date();
-    const time = now.toLocaleString('id-ID', {
+    // Get Jakarta time components
+    const options = {
         timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
         hour12: false,
-    });
-    return time;
+    };
+    const parts = new Intl.DateTimeFormat('en-CA', options).formatToParts(now);
+    const get = (type) => parts.find((p) => p.type === type)?.value || '00';
+    const year = get('year');
+    const month = get('month');
+    const day = get('day');
+    const hour = get('hour');
+    const minute = get('minute');
+    const second = get('second');
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 /**
  * Format timestamp with gray color

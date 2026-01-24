@@ -199,11 +199,20 @@ async function recordAttendance(user, command, photoUrl, telegramMessageId, tele
     let lateAfter;
     let keterangan;
     if (user.unit === 'SDI') {
-        // SDI fixed schedule
-        startTime = '07:30';
-        endTime = '17:00';
-        lateAfter = '07:36';
-        keterangan = normalizedCmd === '/piket' ? 'Piket' : 'Pagi';
+        // SDI fixed schedule - different for /pagi and /piket
+        if (normalizedCmd === '/piket') {
+            startTime = '08:00';
+            endTime = '17:00';
+            lateAfter = '08:06';
+            keterangan = 'Piket';
+        }
+        else {
+            // /pagi
+            startTime = '07:30';
+            endTime = '17:00';
+            lateAfter = '07:36';
+            keterangan = 'Pagi';
+        }
     }
     else {
         // Daman from ShiftSetting

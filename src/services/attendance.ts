@@ -46,7 +46,7 @@ export interface TelegramCommandData {
  * First tries User table (for Daman), then TelegramUser table (for SDI)
  */
 export async function findUserByTelegram(
-  username: string
+  username: string,
 ): Promise<BotUserData | null> {
   // Normalize username (ensure it starts with @)
   const normalizedUsername = username.startsWith('@')
@@ -96,7 +96,7 @@ export async function findUserByTelegram(
  */
 export async function getCommandByUnitAndCommand(
   unit: string,
-  command: string
+  command: string,
 ): Promise<TelegramCommandData | null> {
   const normalizedCmd = normalizeCommand(command);
 
@@ -193,13 +193,13 @@ export function commandToShiftType(command: string): ShiftType {
  */
 export async function validateCommand(
   user: BotUserData,
-  command: string
+  command: string,
 ): Promise<boolean> {
   const validCommands = await getValidCommandsForUnit(user.unit);
   const normalizedInputCmd = normalizeCommand(command);
 
   return validCommands.some(
-    (cmd) => normalizeCommand(cmd) === normalizedInputCmd
+    (cmd) => normalizeCommand(cmd) === normalizedInputCmd,
   );
 }
 
@@ -225,7 +225,7 @@ export async function recordAttendance(
   command: string,
   photoUrl: string,
   telegramMessageId?: string,
-  telegramChatId?: string
+  telegramChatId?: string,
 ): Promise<AttendanceResult> {
   const now = getNow();
   const tanggalStr = formatTanggal(now);
@@ -244,11 +244,19 @@ export async function recordAttendance(
   let keterangan: string;
 
   if (user.unit === 'SDI') {
-    // SDI fixed schedule
-    startTime = '07:30';
-    endTime = '17:00';
-    lateAfter = '07:36';
-    keterangan = normalizedCmd === '/piket' ? 'Piket' : 'Pagi';
+    // SDI fixed schedule - different for /pagi and /piket
+    if (normalizedCmd === '/piket') {
+      startTime = '08:00';
+      endTime = '17:00';
+      lateAfter = '08:06';
+      keterangan = 'Piket';
+    } else {
+      // /pagi
+      startTime = '07:30';
+      endTime = '17:00';
+      lateAfter = '07:36';
+      keterangan = 'Pagi';
+    }
   } else {
     // Daman from ShiftSetting
     startTime = cmdData?.startTime || '07:30';
@@ -346,7 +354,7 @@ export async function recordAttendance(
  * Always uses spreadsheet as the source of truth for ALL users
  */
 export async function getTodayAttendance(
-  user: BotUserData
+  user: BotUserData,
 ): Promise<SheetAttendanceData | null> {
   const now = getNow();
   const todayStr = formatTanggal(now);
