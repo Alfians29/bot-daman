@@ -13,6 +13,7 @@ import {
   formatTanggal,
   formatLogTimestamp,
   getNow,
+  isLateByTimeString,
 } from '../utils/date';
 import { AttendanceStatus } from '@prisma/client';
 import { updateAttendanceInSheet } from '../services/sheets';
@@ -45,7 +46,7 @@ export async function handleEditAbsen(ctx: Context): Promise<void> {
         `Contoh:\n` +
         `• /editabsen @alfiyyann pagi\n` +
         `• /editabsen @alfiyyann malam`,
-      { parse_mode: 'HTML' }
+      { parse_mode: 'HTML' },
     );
     return;
   }
@@ -66,7 +67,7 @@ export async function handleEditAbsen(ctx: Context): Promise<void> {
   if (!targetUser) {
     await ctx.reply(
       `⚠️ <b>User ${targetUsername} tidak ditemukan di database.</b>`,
-      { parse_mode: 'HTML' }
+      { parse_mode: 'HTML' },
     );
     return;
   }
@@ -76,7 +77,7 @@ export async function handleEditAbsen(ctx: Context): Promise<void> {
   if (!todayAttendance) {
     await ctx.reply(
       `⚠️ <b>${targetUser.nama} belum absen hari ini.</b>\n\nTidak ada data yang bisa diedit.`,
-      { parse_mode: 'HTML' }
+      { parse_mode: 'HTML' },
     );
     return;
   }
@@ -87,6 +88,7 @@ export async function handleEditAbsen(ctx: Context): Promise<void> {
   // Get schedule based on unit
   let startTime: string;
   let endTime: string;
+  let lateAfter: string;
   let keterangan: string;
 
   if (targetUser.unit === 'SDI') {
@@ -94,15 +96,17 @@ export async function handleEditAbsen(ctx: Context): Promise<void> {
     if (newJadwal === 'pagi') {
       startTime = '07:30';
       endTime = '17:00';
+      lateAfter = '07:36';
       keterangan = 'Pagi';
     } else if (newJadwal === 'piket') {
       startTime = '08:00';
       endTime = '17:00';
+      lateAfter = '08:06';
       keterangan = 'Piket';
     } else {
       await ctx.reply(
         `⚠️ <b>Jadwal tidak valid untuk SDI!</b>\n\nPilihan: pagi, piket`,
-        { parse_mode: 'HTML' }
+        { parse_mode: 'HTML' },
       );
       return;
     }
@@ -110,21 +114,27 @@ export async function handleEditAbsen(ctx: Context): Promise<void> {
     // DAMAN - get from database ShiftSetting
     const cmdData = await getCommandByUnitAndCommand(
       targetUser.unit,
-      newCommand
+      newCommand,
     );
     if (!cmdData) {
       await ctx.reply(
         `⚠️ <b>Jadwal "${newJadwal}" tidak ditemukan untuk ${targetUser.unit}!</b>`,
-        { parse_mode: 'HTML' }
+        { parse_mode: 'HTML' },
       );
       return;
     }
     startTime = cmdData.startTime || '07:30';
     endTime = cmdData.endTime || '16:30';
+    lateAfter = cmdData.lateAfter || startTime;
     keterangan = cmdData.shiftName;
   }
 
   const jadwal = `${startTime}-${endTime} WIB`;
+
+  // Recalculate status based on jam absen and new lateAfter time
+  const jamAbsen = todayAttendance.jamAbsen; // e.g., "8:02"
+  const isLate = isLateByTimeString(jamAbsen, lateAfter);
+  const newStatus = isLate ? 'Telat' : 'Ontime';
 
   try {
     // Update in database (for Daman users)
@@ -139,30 +149,34 @@ export async function handleEditAbsen(ctx: Context): Promise<void> {
         },
         data: {
           keterangan: shiftType,
+          status: isLate ? AttendanceStatus.TELAT : AttendanceStatus.ONTIME,
         },
       });
     }
 
-    // Update in Google Sheets
+    // Update in Google Sheets (jadwal, keterangan, and status)
     const todayStr = formatTanggal(getTodayStart());
     await updateAttendanceInSheet(targetUser.nik, todayStr, {
       jadwalMasuk: jadwal,
       keterangan: keterangan,
+      status: newStatus,
     });
 
     const now = getNow();
     console.log(
       `${formatLogTimestamp(now)} Jadwal masuk ${
         targetUser.nama
-      } diubah menjadi ${keterangan} oleh admin`
+      } diubah menjadi ${keterangan} oleh admin`,
     );
 
+    const statusEmoji = newStatus === 'Ontime' ? '🟢' : '🔴';
     await ctx.reply(
       `✅ <b>Absensi berhasil diupdate!</b>\n\n` +
         `👤 ${targetUser.nama}\n` +
         `├ Jadwal baru: ${jadwal}\n` +
-        `└ Keterangan: ${keterangan}`,
-      { parse_mode: 'HTML' }
+        `├ Keterangan: ${keterangan}\n` +
+        `└ Status: ${statusEmoji} ${newStatus}`,
+      { parse_mode: 'HTML' },
     );
   } catch (error) {
     console.error('Error updating attendance:', error);

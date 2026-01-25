@@ -83,7 +83,7 @@ export function getTodayStart(): Date {
  */
 export function parseJadwalToDeadline(
   jadwal: string,
-  toleranceMinutes: number = 5
+  toleranceMinutes: number = 5,
 ): Date {
   const now = getNow();
 
@@ -117,7 +117,7 @@ export function isLate(checkInTime: Date, jadwal: string): boolean {
  */
 export function isLateByTime(
   checkInTime: Date,
-  lateAfterTime: string
+  lateAfterTime: string,
 ): boolean {
   const now = getNow();
 
@@ -132,6 +132,37 @@ export function isLateByTime(
   deadline.setHours(hour, minute, 0, 0);
 
   return isAfter(checkInTime, deadline);
+}
+
+/**
+ * Check if jam absen string is late compared to lateAfter time string
+ * Used for recalculating status when editing attendance
+ * @param jamAbsen - Check-in time string like "8:02" or "08:02"
+ * @param lateAfterTime - Late threshold time string like "08:06"
+ * @returns true if jamAbsen is at or after lateAfterTime
+ */
+export function isLateByTimeString(
+  jamAbsen: string,
+  lateAfterTime: string,
+): boolean {
+  // Parse jam absen (e.g., "8:02" or "08:02")
+  const jamSeparator = jamAbsen.includes(':') ? ':' : '.';
+  const [jamHourStr, jamMinuteStr] = jamAbsen.split(jamSeparator);
+  const jamHour = parseInt(jamHourStr, 10);
+  const jamMinute = parseInt(jamMinuteStr || '0', 10);
+
+  // Parse lateAfter time (e.g., "08:06")
+  const lateSeparator = lateAfterTime.includes(':') ? ':' : '.';
+  const [lateHourStr, lateMinuteStr] = lateAfterTime.split(lateSeparator);
+  const lateHour = parseInt(lateHourStr, 10);
+  const lateMinute = parseInt(lateMinuteStr || '0', 10);
+
+  // Convert to minutes for easy comparison
+  const jamTotalMinutes = jamHour * 60 + jamMinute;
+  const lateTotalMinutes = lateHour * 60 + lateMinute;
+
+  // Late if jam absen is at or after lateAfter time
+  return jamTotalMinutes >= lateTotalMinutes;
 }
 
 /**

@@ -4,6 +4,7 @@ exports.handleEditAbsen = handleEditAbsen;
 const attendance_1 = require("../services/attendance");
 const prisma_1 = require("../lib/prisma");
 const date_1 = require("../utils/date");
+const client_1 = require("@prisma/client");
 const sheets_1 = require("../services/sheets");
 // Admin username
 const ADMIN_USERNAME = 'alfiyyann';
@@ -56,17 +57,20 @@ async function handleEditAbsen(ctx) {
     // Get schedule based on unit
     let startTime;
     let endTime;
+    let lateAfter;
     let keterangan;
     if (targetUser.unit === 'SDI') {
         // SDI fixed schedules
         if (newJadwal === 'pagi') {
             startTime = '07:30';
             endTime = '17:00';
+            lateAfter = '07:36';
             keterangan = 'Pagi';
         }
         else if (newJadwal === 'piket') {
             startTime = '08:00';
             endTime = '17:00';
+            lateAfter = '08:06';
             keterangan = 'Piket';
         }
         else {
@@ -83,9 +87,14 @@ async function handleEditAbsen(ctx) {
         }
         startTime = cmdData.startTime || '07:30';
         endTime = cmdData.endTime || '16:30';
+        lateAfter = cmdData.lateAfter || startTime;
         keterangan = cmdData.shiftName;
     }
     const jadwal = `${startTime}-${endTime} WIB`;
+    // Recalculate status based on jam absen and new lateAfter time
+    const jamAbsen = todayAttendance.jamAbsen; // e.g., "8:02"
+    const isLate = (0, date_1.isLateByTimeString)(jamAbsen, lateAfter);
+    const newStatus = isLate ? 'Telat' : 'Ontime';
     try {
         // Update in database (for Daman users)
         if (targetUser.source === 'USER') {
@@ -98,21 +107,25 @@ async function handleEditAbsen(ctx) {
                 },
                 data: {
                     keterangan: shiftType,
+                    status: isLate ? client_1.AttendanceStatus.TELAT : client_1.AttendanceStatus.ONTIME,
                 },
             });
         }
-        // Update in Google Sheets
+        // Update in Google Sheets (jadwal, keterangan, and status)
         const todayStr = (0, date_1.formatTanggal)((0, date_1.getTodayStart)());
         await (0, sheets_1.updateAttendanceInSheet)(targetUser.nik, todayStr, {
             jadwalMasuk: jadwal,
             keterangan: keterangan,
+            status: newStatus,
         });
         const now = (0, date_1.getNow)();
         console.log(`${(0, date_1.formatLogTimestamp)(now)} Jadwal masuk ${targetUser.nama} diubah menjadi ${keterangan} oleh admin`);
+        const statusEmoji = newStatus === 'Ontime' ? '🟢' : '🔴';
         await ctx.reply(`✅ <b>Absensi berhasil diupdate!</b>\n\n` +
             `👤 ${targetUser.nama}\n` +
             `├ Jadwal baru: ${jadwal}\n` +
-            `└ Keterangan: ${keterangan}`, { parse_mode: 'HTML' });
+            `├ Keterangan: ${keterangan}\n` +
+            `└ Status: ${statusEmoji} ${newStatus}`, { parse_mode: 'HTML' });
     }
     catch (error) {
         console.error('Error updating attendance:', error);
