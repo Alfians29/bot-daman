@@ -133,8 +133,7 @@ async function getAttendanceRecords() {
                     parseInt(parts[1]), // day
                     parseInt(parts[4]), // hour
                     parseInt(parts[5]), // minute
-                    parseInt(parts[6] || '0') // second (optional)
-                    );
+                    parseInt(parts[6] || '0'));
                 }
                 else {
                     // Fallback for ISO format (YYYY-MM-DD)
@@ -207,6 +206,10 @@ async function updateAttendanceInSheet(nik, tanggal, updates) {
             updateRanges.push(`Absensi!E${rowIndex}`);
             updateData.push([[updates.keterangan]]);
         }
+        if (updates.status) {
+            updateRanges.push(`Absensi!H${rowIndex}`);
+            updateData.push([[updates.status]]);
+        }
         // Batch update
         for (let i = 0; i < updateRanges.length; i++) {
             await sheets.spreadsheets.values.update({
@@ -218,6 +221,8 @@ async function updateAttendanceInSheet(nik, tanggal, updates) {
                 },
             });
         }
+        // Invalidate cache after update so /cekabsen reads fresh data
+        invalidateAttendanceCache();
         return true;
     }
     catch (error) {

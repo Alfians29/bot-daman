@@ -36,7 +36,7 @@ export interface SheetAttendanceData {
  * Append attendance record to Google Sheets
  */
 export async function appendAttendance(
-  data: SheetAttendanceData
+  data: SheetAttendanceData,
 ): Promise<void> {
   try {
     const row = [
@@ -81,7 +81,7 @@ export async function hasAttendedTodayInSheet(
   nik: string,
   day: number,
   month: number,
-  year: number
+  year: number,
 ): Promise<boolean> {
   try {
     const response = await sheets.spreadsheets.values.get({
@@ -171,7 +171,7 @@ export async function getAttendanceRecords(): Promise<SheetAttendanceData[]> {
 
         // Try DD/MM/YYYY HH:mm:ss or DD/MM/YYYY HH:mm format first
         const parts = waktuStr.match(
-          /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/
+          /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/,
         );
 
         if (parts) {
@@ -181,7 +181,7 @@ export async function getAttendanceRecords(): Promise<SheetAttendanceData[]> {
             parseInt(parts[1]), // day
             parseInt(parts[4]), // hour
             parseInt(parts[5]), // minute
-            parseInt(parts[6] || '0') // second (optional)
+            parseInt(parts[6] || '0'), // second (optional)
           );
         } else {
           // Fallback for ISO format (YYYY-MM-DD)
@@ -226,7 +226,7 @@ export async function getAttendanceRecords(): Promise<SheetAttendanceData[]> {
 export async function updateAttendanceInSheet(
   nik: string,
   tanggal: string,
-  updates: { jadwalMasuk?: string; keterangan?: string }
+  updates: { jadwalMasuk?: string; keterangan?: string; status?: string },
 ): Promise<boolean> {
   try {
     const response = await sheets.spreadsheets.values.get({
@@ -268,6 +268,11 @@ export async function updateAttendanceInSheet(
       updateData.push([[updates.keterangan]]);
     }
 
+    if (updates.status) {
+      updateRanges.push(`Absensi!H${rowIndex}`);
+      updateData.push([[updates.status]]);
+    }
+
     // Batch update
     for (let i = 0; i < updateRanges.length; i++) {
       await sheets.spreadsheets.values.update({
@@ -279,6 +284,9 @@ export async function updateAttendanceInSheet(
         },
       });
     }
+
+    // Invalidate cache after update so /cekabsen reads fresh data
+    invalidateAttendanceCache();
 
     return true;
   } catch (error) {

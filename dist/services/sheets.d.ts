@@ -36,5 +36,6 @@ export declare function getAttendanceRecords(): Promise<SheetAttendanceData[]>;
 export declare function updateAttendanceInSheet(nik: string, tanggal: string, updates: {
     jadwalMasuk?: string;
     keterangan?: string;
+    status?: string;
 }): Promise<boolean>;
 //# sourceMappingURL=sheets.d.ts.map

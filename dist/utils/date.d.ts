@@ -43,6 +43,14 @@ export declare function isLate(checkInTime: Date, jadwal: string): boolean;
  */
 export declare function isLateByTime(checkInTime: Date, lateAfterTime: string): boolean;
 /**
+ * Check if jam absen string is late compared to lateAfter time string
+ * Used for recalculating status when editing attendance
+ * @param jamAbsen - Check-in time string like "8:02" or "08:02"
+ * @param lateAfterTime - Late threshold time string like "08:06"
+ * @returns true if jamAbsen is at or after lateAfterTime
+ */
+export declare function isLateByTimeString(jamAbsen: string, lateAfterTime: string): boolean;
+/**
  * Format full date for display: "18 Desember 2025"
  */
 export declare function formatTanggalFull(date: Date): string;
