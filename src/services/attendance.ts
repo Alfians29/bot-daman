@@ -93,6 +93,8 @@ export async function findUserByTelegram(
 
 /**
  * Get command/jadwal by unit and command (includes ShiftSetting data)
+ * For SDI: returns hardcoded schedule (no ShiftSetting relation)
+ * For Daman: returns data from ShiftSetting relation
  */
 export async function getCommandByUnitAndCommand(
   unit: string,
@@ -100,6 +102,45 @@ export async function getCommandByUnitAndCommand(
 ): Promise<TelegramCommandData | null> {
   const normalizedCmd = normalizeCommand(command);
 
+  // For SDI: query without shiftSetting relation (shiftSettingId is NULL)
+  // and return hardcoded schedule data
+  if (unit === 'SDI') {
+    const cmd = await prisma.telegramCommand.findFirst({
+      where: {
+        unit: unit,
+        command: normalizedCmd,
+        isActive: true,
+      },
+    });
+
+    if (!cmd) return null;
+
+    // SDI hardcoded schedules
+    if (normalizedCmd === '/piket') {
+      return {
+        id: cmd.id,
+        unit: cmd.unit,
+        command: cmd.command,
+        shiftName: 'Piket',
+        startTime: '08:00',
+        endTime: '17:00',
+        lateAfter: '08:06',
+      };
+    } else {
+      // /pagi
+      return {
+        id: cmd.id,
+        unit: cmd.unit,
+        command: cmd.command,
+        shiftName: 'Pagi',
+        startTime: '07:30',
+        endTime: '17:00',
+        lateAfter: '07:36',
+      };
+    }
+  }
+
+  // For Daman: query with shiftSetting relation
   const cmd = await prisma.telegramCommand.findFirst({
     where: {
       unit: unit,
