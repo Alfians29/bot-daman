@@ -30,6 +30,8 @@ export interface TelegramCommandData {
 export declare function findUserByTelegram(username: string): Promise<BotUserData | null>;
 /**
  * Get command/jadwal by unit and command (includes ShiftSetting data)
+ * For SDI: returns hardcoded schedule (no ShiftSetting relation)
+ * For Daman: returns data from ShiftSetting relation
  */
 export declare function getCommandByUnitAndCommand(unit: string, command: string): Promise<TelegramCommandData | null>;
 /**
